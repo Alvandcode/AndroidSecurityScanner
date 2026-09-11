@@ -74,4 +74,9 @@
     <string name="reasons">دلایل</string>
     <string name="scan_all">اسکن همه</string>
     <string name="scan_all_needs_folder">راهنما: در تب فایل‌ها پوشه انتخاب کن تا اسکن همه فایل‌ها را هم شامل شود</string>
+    <string name="telegram_channel">کانال تلگرام</string>
+    <string name="donate_title">حمایت مالی</string>
+    <string name="donate_desc">با واریز تون‌کوین از توسعه و رایگان ماندن اپ حمایت کنید.</string>
+    <string name="donate_copy">کپی آدرس</string>
+    <string name="donate_open">باز کردن کیف پول</string>
 </resources>

@@ -20,8 +20,8 @@ android {
         // Increment versionCode on every release, keep versionName human-readable.
         // Install-over works only if applicationId + signing key are identical
         // and new versionCode > old versionCode.
-        versionCode = 6
-        versionName = "1.4.0"
+        versionCode = 7
+        versionName = "1.5.0"
         vectorDrawables { useSupportLibrary = true }
     }
 

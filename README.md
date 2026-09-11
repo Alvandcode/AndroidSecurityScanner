@@ -1,4 +1,4 @@
-# AndroidSecurityScanner — Phase 5 (v1.4.0, versionCode 6)
+# AndroidSecurityScanner — Phase 6 (v1.5.0, versionCode 7)
 
 ## New in Phase-5
 - **Android 6..17:** `minSdk 23`, `target/compile 35` (forward-compatible).

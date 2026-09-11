@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -21,9 +22,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +48,9 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 val Context.dataStore by preferencesDataStore("settings")
+
+private const val TG_CHANNEL = "https://t.me/a_c_official"
+private const val TON_ADDR = "UQCB9rzvwmq0FJDaBkHVdBgbfZPb06FWdKco3woAHH6AXuUt"
 
 class ScanViewModel : ViewModel() {
     var findings = mutableStateOf<List<AppFinding>>(emptyList()); private set
@@ -471,39 +477,84 @@ fun Dashboard(vm: ScanViewModel) {
                 if (query.isBlank()) true else
                     it.appName.contains(query, true) || it.packageName.contains(query, true)
             }
-        if (base.isEmpty() && !vm.scanning.value && vm.findings.value.isNotEmpty()) {
+        val danger = base.filter { it.verdict == Verdict.DANGEROUS }
+        val review = base.filter { it.verdict == Verdict.REVIEW }
+        val safe = base.filter { it.verdict == Verdict.SAFE }
+        if (base.isEmpty() && !vm.scanning.value && !vm.unifiedScanning.value && vm.findings.value.isNotEmpty()) {
             item { GlassCard(Modifier.fillMaxWidth()) { Text(stringResource(R.string.no_threats)) } }
         }
-        items(base.take(100)) { f ->
-            val c = LocalContext.current
-            GlassCard(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(f.appName, fontWeight = FontWeight.Bold)
-                        Text(f.packageName, fontSize = 11.sp)
-                        Text("${f.score}/100 • " + verdictText(f.verdict) + (if (f.unknownSource) " • " + stringResource(R.string.unknown_source) else ""),
-                            fontSize = 12.sp)
-                        if (f.riskyPermissions.isNotEmpty())
-                            Text("${stringResource(R.string.risky_permissions)}: " + f.riskyPermissions.joinToString { it.name }, fontSize = 12.sp)
-                    }
-                    Column {
-                        Button(onClick = { selected = f }) { Text(stringResource(R.string.details)) }
-                        TextButton(onClick = {
-                            try { c.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${f.packageName}"))) } catch (_: Exception) { }
-                        }) { Text(stringResource(R.string.uninstall)) }
-                        TextButton(onClick = {
-                            try {
-                                c.startActivity(
-                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${f.packageName}"))
-                                )
-                            } catch (_: Exception) { }
-                        }) { Text(stringResource(R.string.app_info)) }
-                    }
-                }
+        if (danger.isNotEmpty()) {
+            item {
+                com.alvand.securityscanner.ui.CategoryHeader(
+                    "🔴 ${stringResource(R.string.dangerous)}: ${danger.size}",
+                    com.alvand.securityscanner.ui.GlowDanger
+                )
+            }
+            items(danger.take(100), key = { it.packageName }) { f ->
+                AppRow(f, com.alvand.securityscanner.ui.GlowDanger, false) { selected = f }
+            }
+        }
+        if (review.isNotEmpty()) {
+            item {
+                com.alvand.securityscanner.ui.CategoryHeader(
+                    "🟡 ${stringResource(R.string.review_needed)}: ${review.size}",
+                    com.alvand.securityscanner.ui.GlowWarn
+                )
+            }
+            items(review.take(100), key = { it.packageName }) { f ->
+                AppRow(f, com.alvand.securityscanner.ui.GlowWarn, true) { selected = f }
+            }
+        }
+        if (safe.isNotEmpty()) {
+            item {
+                com.alvand.securityscanner.ui.CategoryHeader(
+                    "🟢 ${stringResource(R.string.safe)}: ${safe.size}",
+                    com.alvand.securityscanner.ui.GlowSafe
+                )
+            }
+            items(safe.take(50), key = { it.packageName }) { f ->
+                AppRow(f, com.alvand.securityscanner.ui.GlowSafe, false) { selected = f }
             }
         }
     }
     selected?.let { com.alvand.securityscanner.ui.DetailsDialog(it) { selected = null } }
+}
+
+@Composable
+fun AppRow(
+    f: AppFinding,
+    glow: androidx.compose.ui.graphics.Color,
+    pulse: Boolean,
+    onDetails: () -> Unit
+) {
+    val c = LocalContext.current
+    com.alvand.securityscanner.ui.GlowCard(glow = glow, pulse = pulse, modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            com.alvand.securityscanner.ui.AppIcon(f.packageName, Modifier.size(48.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(f.appName, fontWeight = FontWeight.Bold)
+                Text(f.packageName, fontSize = 11.sp)
+                Text("${f.score}/100 • " + verdictText(f.verdict) + (if (f.unknownSource) " • " + stringResource(R.string.unknown_source) else ""),
+                    fontSize = 12.sp)
+                if (f.riskyPermissions.isNotEmpty())
+                    Text("${stringResource(R.string.risky_permissions)}: " + f.riskyPermissions.joinToString { it.name }, fontSize = 12.sp)
+            }
+            Column {
+                Button(onClick = onDetails) { Text(stringResource(R.string.details)) }
+                TextButton(onClick = {
+                    try { c.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${f.packageName}"))) } catch (_: Exception) { }
+                }) { Text(stringResource(R.string.uninstall)) }
+                TextButton(onClick = {
+                    try {
+                        c.startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${f.packageName}"))
+                        )
+                    } catch (_: Exception) { }
+                }) { Text(stringResource(R.string.app_info)) }
+            }
+        }
+    }
 }
 
 @Composable
@@ -623,10 +674,22 @@ fun FilesScreen(vm: ScanViewModel) {
         if (base.isEmpty() && files.isNotEmpty() && !vm.fileScanning.value) {
             item { GlassCard(Modifier.fillMaxWidth()) { Text(stringResource(R.string.no_threats)) } }
         }
-        items(base.take(200)) { f ->
-            GlassCard(Modifier.fillMaxWidth()) {
-                Column {
-                    Text(f.displayName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        items(base.take(200), key = { it.uriString }) { f ->
+            val fglow = when (f.verdict) {
+                com.alvand.securityscanner.scanner.FileVerdict.DANGEROUS -> com.alvand.securityscanner.ui.GlowDanger
+                com.alvand.securityscanner.scanner.FileVerdict.REVIEW -> com.alvand.securityscanner.ui.GlowWarn
+                else -> com.alvand.securityscanner.ui.GlowSafe
+            }
+            com.alvand.securityscanner.ui.GlowCard(
+                glow = fglow,
+                pulse = f.verdict == com.alvand.securityscanner.scanner.FileVerdict.REVIEW,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    com.alvand.securityscanner.ui.FileGlyph(f.isApk, Modifier.size(40.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(f.displayName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Text(
                         "${com.alvand.securityscanner.scanner.FileScanner.displaySize(f.size)} • ${f.score}/100 • " + fileVerdictText(f.verdict),
                         fontSize = 12.sp
@@ -675,6 +738,7 @@ fun FilesScreen(vm: ScanViewModel) {
                                 vm.fileFindings.value = vm.fileFindings.value.filter { it.uriString != f.uriString }
                             }
                         }) { Text(stringResource(R.string.delete)) }
+                        }
                     }
                 }
             }
@@ -729,6 +793,7 @@ fun HistoryList(vm: ScanViewModel) {
 fun SettingsScreen(theme: String, lang: String) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val clip = LocalClipboardManager.current
     val pkg = ctx.packageName
     val verName = try {
         if (Build.VERSION.SDK_INT >= 33) {
@@ -870,6 +935,35 @@ fun SettingsScreen(theme: String, lang: String) {
                 ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Alvandcode")))
             }, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.contact_dev))
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = {
+                try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TG_CHANNEL))) } catch (_: Exception) { }
+            }, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.telegram_channel))
+            }
+        }
+        GlassCard(Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.donate_title), fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.donate_desc), fontSize = 12.sp)
+            Spacer(Modifier.height(6.dp))
+            SelectionContainer {
+                Text(TON_ADDR, fontSize = 12.sp)
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { clip.setText(AnnotatedString(TON_ADDR)) }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.donate_copy))
+                }
+                OutlinedButton(onClick = {
+                    try {
+                        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("ton://transfer/$TON_ADDR")))
+                    } catch (_: Exception) {
+                        try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://tonviewer.io/$TON_ADDR"))) } catch (_: Exception) { }
+                    }
+                }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.donate_open))
+                }
             }
         }
         Text(

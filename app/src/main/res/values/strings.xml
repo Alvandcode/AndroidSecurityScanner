@@ -74,4 +74,9 @@
     <string name="reasons">Reasons</string>
     <string name="scan_all">Scan all</string>
     <string name="scan_all_needs_folder">Tip: pick a folder in Files tab so Scan All covers files too</string>
+    <string name="telegram_channel">Telegram channel</string>
+    <string name="donate_title">Support us</string>
+    <string name="donate_desc">Donate TON to keep the app free and updated.</string>
+    <string name="donate_copy">Copy address</string>
+    <string name="donate_open">Open wallet</string>
 </resources>
