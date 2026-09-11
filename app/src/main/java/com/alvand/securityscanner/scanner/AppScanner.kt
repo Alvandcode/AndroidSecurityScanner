@@ -6,6 +6,7 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 class AppScanner(private val context: Context) {
@@ -25,11 +26,12 @@ class AppScanner(private val context: Context) {
         }
 
         val out = mutableListOf<AppFinding>()
-        pkgs.forEachIndexed { i, pkg ->
-            val ai = pkg.applicationInfo ?: return@forEachIndexed
+        for ((i, pkg) in pkgs.withIndex()) {
+            ensureActive() // Stop button cancels promptly
+            val ai = pkg.applicationInfo ?: continue
             val isSystem = (ai.flags and ApplicationInfo.FLAG_SYSTEM) != 0 ||
                     (ai.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-            if (isSystem && !includeSystem) { onProgress(Progress(i + 1, pkgs.size)); return@forEachIndexed }
+            if (isSystem && !includeSystem) { onProgress(Progress(i + 1, pkgs.size)); continue }
 
             val perms: List<String> = pkg.requestedPermissions?.toList() ?: emptyList()
             val installer: String? = try {

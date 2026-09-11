@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -105,8 +106,8 @@ object FileScanner {
         }
         if (flat.size >= MAX_FILES) truncated = true
 
-        flat.forEachIndexed { i, doc ->
-            if (!coroutineContext.isActive) return@forEachIndexed
+        for ((i, doc) in flat.withIndex()) {
+            ensureActive() // Stop button cancels promptly (throws CancellationException)
             val name = try { doc.name ?: "?" } catch (_: Exception) { "?" }
             try { onProgress(FileScanProgress(i + 1, flat.size, name)) } catch (_: Exception) { }
             try {

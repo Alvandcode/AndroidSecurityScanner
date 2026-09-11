@@ -8,12 +8,12 @@ import androidx.compose.ui.graphics.Color
 // Explicit on-colors everywhere: default Material3 dynamic tones made body text
 // near-black on our translucent cards in dark mode (unreadable). These are fixed.
 private val LightScheme = lightColorScheme(
-    primary = Color(0xFF3F51B5), onPrimary = Color.White,
-    secondary = Color(0xFF5C6BC0), onSecondary = Color.White,
-    background = Color(0xFFF0F2F5), onBackground = Color(0xFF141A26),
-    surface = Color.White, onSurface = Color(0xFF141A26),
-    surfaceVariant = Color(0xFFE4E8F2), onSurfaceVariant = Color(0xFF3A4356),
-    outline = Color(0xFF9AA3B8)
+    primary = Color(0xFF5B7CFF), onPrimary = Color.White,
+    secondary = Color(0xFF9B8AFB), onSecondary = Color.White,
+    background = Color(0xFFF3F4FA), onBackground = Color(0xFF1A1D2E),
+    surface = Color.White, onSurface = Color(0xFF1A1D2E),
+    surfaceVariant = Color(0xFFECEFF7), onSurfaceVariant = Color(0xFF5A6072),
+    outline = Color(0xFFD9DEEB)
 )
 private val DarkScheme = darkColorScheme(
     primary = Color(0xFF9FA8DA), onPrimary = Color(0xFF0F1420),

@@ -8,20 +8,36 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -43,6 +59,8 @@ import com.alvand.securityscanner.ui.AppTheme
 import com.alvand.securityscanner.ui.GlassBackground
 import com.alvand.securityscanner.ui.GlassCard
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -72,14 +90,26 @@ class ScanViewModel : ViewModel() {
     var unifiedStage = mutableStateOf(""); private set
     var unifiedScore = mutableStateOf<Int?>(null); private set
     var vtSummary = mutableStateOf<String?>(null); private set
+    var scanStartMs = mutableStateOf(0L); private set
+    private var appJob: Job? = null
+    private var fileJob: Job? = null
+    private var uniJob: Job? = null
 
     fun setTreeUri(uri: String?) { fileTreeUri.value = uri }
+
+    /** Stop any running scan (Scan screen Stop button). Loops check ensureActive. */
+    fun stopAll() {
+        appJob?.cancel(); fileJob?.cancel(); uniJob?.cancel()
+        scanning.value = false; fileScanning.value = false; unifiedScanning.value = false
+    }
 
     fun scan(ctx: Context, withSystem: Boolean = includeSystem.value) {
         if (scanning.value) return
         includeSystem.value = withSystem
-        viewModelScope.launch {
+        appJob?.cancel()
+        appJob = viewModelScope.launch {
             scanning.value = true; progress.value = 0f
+            scanStartMs.value = System.currentTimeMillis()
             val appCtx = ctx.applicationContext
             val list = AppScanner(appCtx).scanAll(includeSystem = withSystem) { p ->
                 progress.value = if (p.total == 0) 0f else p.done.toFloat() / p.total
@@ -117,8 +147,10 @@ class ScanViewModel : ViewModel() {
 
     fun scanFiles(ctx: Context, treeUriString: String) {
         if (fileScanning.value) return
-        viewModelScope.launch {
+        fileJob?.cancel()
+        fileJob = viewModelScope.launch {
             fileScanning.value = true; fileProgress.value = 0f; fileCurrent.value = ""
+            scanStartMs.value = System.currentTimeMillis()
             try {
                 val appCtx = ctx.applicationContext
                 val treeUri = Uri.parse(treeUriString)
@@ -166,8 +198,10 @@ class ScanViewModel : ViewModel() {
      */
     fun scanAll(ctx: Context, withSystem: Boolean = includeSystem.value) {
         if (unifiedScanning.value || scanning.value || fileScanning.value) return
-        viewModelScope.launch {
+        uniJob?.cancel()
+        uniJob = viewModelScope.launch {
             unifiedScanning.value = true; unifiedProgress.value = 0f; vtSummary.value = null
+            scanStartMs.value = System.currentTimeMillis()
             try {
                 val appCtx = ctx.applicationContext
                 // Stage 1: apps
@@ -336,35 +370,51 @@ fun MainTabs(theme: String, lang: String) {
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = tab == 0, onClick = { tab = 0 },
-                    icon = { Icon(Icons.Default.Dashboard, null) },
-                    label = { Text(stringResource(R.string.dashboard)) }
-                )
-                NavigationBarItem(
-                    selected = tab == 1, onClick = { tab = 1 },
-                    icon = { Icon(Icons.Default.Folder, null) },
-                    label = { Text(stringResource(R.string.files)) }
-                )
-                NavigationBarItem(
-                    selected = tab == 2, onClick = { tab = 2 },
-                    icon = { Icon(Icons.Default.History, null) },
-                    label = { Text(stringResource(R.string.history)) }
-                )
-                NavigationBarItem(
-                    selected = tab == 3, onClick = { tab = 3 },
-                    icon = { Icon(Icons.Default.Settings, null) },
-                    label = { Text(stringResource(R.string.settings)) }
-                )
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 12.dp,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    BottomTab(
+                        selected = tab == 0, icon = Icons.Default.Home,
+                        label = stringResource(R.string.dashboard), onClick = { tab = 0 }
+                    )
+                    BottomTab(
+                        selected = tab == 1, icon = Icons.Default.Folder,
+                        label = stringResource(R.string.files), onClick = { tab = 1 }
+                    )
+                    FloatingActionButton(
+                        onClick = { tab = 2; vm.scanAll(ctx0) },
+                        containerColor = Color(0xFF6B7CFF),
+                        contentColor = Color.White,
+                        shape = CircleShape,
+                        modifier = Modifier.size(60.dp).offset(y = (-14).dp)
+                    ) {
+                        Icon(Icons.Default.GpsFixed, contentDescription = null, modifier = Modifier.size(28.dp))
+                    }
+                    BottomTab(
+                        selected = tab == 3, icon = Icons.Default.History,
+                        label = stringResource(R.string.history), onClick = { tab = 3 }
+                    )
+                    BottomTab(
+                        selected = tab == 4, icon = Icons.Default.Settings,
+                        label = stringResource(R.string.settings), onClick = { tab = 4 }
+                    )
+                }
             }
         }
     ) { pad ->
         Box(Modifier.padding(pad)) {
             when (tab) {
-                0 -> Dashboard(vm)
+                0 -> HomeScreen(vm, onScan = { tab = 2 }, onSettings = { tab = 4 }, onHistory = { tab = 3 })
                 1 -> FilesScreen(vm)
-                2 -> HistoryList(vm)
+                2 -> ScanScreen(vm, onBack = { tab = 0 })
+                3 -> HistoryList(vm)
                 else -> SettingsScreen(theme, lang)
             }
         }
@@ -372,38 +422,90 @@ fun MainTabs(theme: String, lang: String) {
 }
 
 @Composable
-fun Dashboard(vm: ScanViewModel) {
+fun BottomTab(
+    selected: Boolean,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    val tint = if (selected) Color(0xFF5B7CFF) else MaterialTheme.colorScheme.onSurfaceVariant
+    Column(
+        Modifier.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+        Text(label, fontSize = 11.sp, color = tint)
+    }
+}
+
+@Composable
+fun HomeScreen(vm: ScanViewModel, onScan: () -> Unit, onSettings: () -> Unit, onHistory: () -> Unit) {
     val ctx = LocalContext.current
     var selected by remember { mutableStateOf<AppFinding?>(null) }
     var query by remember { mutableStateOf("") }
     var onlyThreats by remember { mutableStateOf(true) }
     var showSystem by remember { mutableStateOf(false) }
+    var webOpen by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     // Modern permission request (replaces deprecated requestPermissions).
     val notifLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
     ) { }
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val sched by ctx.dataStore.data.map { it[PrefsKeys.SCHED] == true }.collectAsState(false)
+    val lastScan by ctx.dataStore.data.map { it[PrefsKeys.LAST_SCAN] }.collectAsState(null)
+    val notifOn = if (Build.VERSION.SDK_INT >= 33) {
+        ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+    } else true
+    fun askNotif() {
+        if (Build.VERSION.SDK_INT >= 33 && !notifOn) {
+            try { notifLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) } catch (_: Exception) { }
+        }
+    }
+    fun openNotifSettings() {
+        try {
+            if (Build.VERSION.SDK_INT >= 26) {
+                ctx.startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+                )
+            } else {
+                ctx.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${ctx.packageName}"))
+                )
+            }
+        } catch (_: Exception) { }
+    }
+    LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        // Header
         item {
-            GlassCard(Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.device_score), fontSize = 14.sp)
-                // Unified score takes precedence once «اسکن همه» has run.
-                val shown = vm.unifiedScore.value ?: vm.deviceScore.value
-                Text("${shown ?: "--"}/100", fontSize = 44.sp, fontWeight = FontWeight.Bold)
-                if (vm.unifiedScore.value != null) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onSettings) { Icon(Icons.Default.Menu, contentDescription = null) }
+                IconButton(onClick = onHistory) {
+                    Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Text(stringResource(R.string.app_name), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.app_tagline), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        // Score ring
+        item {
+            val shown = vm.unifiedScore.value ?: vm.deviceScore.value
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                ScoreRing(shown)
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.AccessTime, contentDescription = null,
+                        modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.width(4.dp))
                     Text(
-                        "${stringResource(R.string.scan_all)} ✓ " +
-                                "(${stringResource(R.string.apps_scanned)}: ${vm.findings.value.size} • " +
-                                "${stringResource(R.string.files_scanned)}: ${vm.fileFindings.value.size})",
-                        fontSize = 12.sp
+                        "${stringResource(R.string.last_scan)}: ${lastScan ?: stringResource(R.string.never)}",
+                        fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 if (vm.vtSummary.value != null) Text(vm.vtSummary.value!!, fontSize = 12.sp)
-                if (vm.scanning.value) LinearProgressIndicator(vm.progress.value, Modifier.fillMaxWidth().padding(top = 8.dp))
-                if (vm.unifiedScanning.value) {
-                    LinearProgressIndicator(vm.unifiedProgress.value, Modifier.fillMaxWidth().padding(top = 8.dp))
-                    if (vm.unifiedStage.value.isNotBlank()) Text(vm.unifiedStage.value.take(60), fontSize = 11.sp)
-                }
-                // Device health (root / ADB / dev options) — read-only, guides to Settings.
                 val h = vm.health.value
                 if (h != null && h.issues.isNotEmpty()) {
                     Spacer(Modifier.height(6.dp))
@@ -415,59 +517,127 @@ fun Dashboard(vm: ScanViewModel) {
                         try { ctx.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS)) } catch (_: Exception) { }
                     }) { Text(stringResource(R.string.open_security_settings)) }
                 }
-                Spacer(Modifier.height(8.dp))
-                // Primary: Scan All (apps + files, one score). Secondary: apps only.
-                Button(onClick = {
-                    if (Build.VERSION.SDK_INT >= 33 &&
-                        ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
-                        android.content.pm.PackageManager.PERMISSION_GRANTED
-                    ) {
-                        try { notifLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) } catch (_: Exception) { }
+            }
+        }
+        // Quick Scan
+        item {
+            GlassCard(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.VerifiedUser, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.quick_scan), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(
+                            stringResource(R.string.quick_desc), fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    vm.scanAll(ctx, showSystem)
-                }, enabled = !vm.scanning.value && !vm.unifiedScanning.value && !vm.fileScanning.value,
-                    modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        if (vm.unifiedScanning.value) stringResource(R.string.scanning)
-                        else "◉ " + stringResource(R.string.scan_all)
+                    Button(
+                        onClick = { askNotif(); vm.scan(ctx, showSystem) },
+                        enabled = !vm.scanning.value && !vm.unifiedScanning.value,
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(14.dp)
+                    ) {
+                        Icon(Icons.Default.ArrowForward, contentDescription = null)
+                    }
+                }
+                if (vm.scanning.value && !vm.unifiedScanning.value) {
+                    Spacer(Modifier.height(8.dp))
+                    LinearProgressIndicator(vm.progress.value, Modifier.fillMaxWidth())
+                }
+            }
+        }
+        // Full / App / Web mini cards
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MiniScanCard(
+                    Modifier.weight(1f), Icons.Default.GpsFixed,
+                    stringResource(R.string.full_scan), stringResource(R.string.full_desc)
+                ) { askNotif(); vm.scanAll(ctx, showSystem); onScan() }
+                MiniScanCard(
+                    Modifier.weight(1f), Icons.Default.Apps,
+                    stringResource(R.string.app_scan), stringResource(R.string.app_desc)
+                ) { askNotif(); vm.scan(ctx, true) }
+                MiniScanCard(
+                    Modifier.weight(1f), Icons.Default.Language,
+                    stringResource(R.string.web_scan), stringResource(R.string.web_desc)
+                ) { webOpen = true }
+            }
+        }
+        // Protection
+        item {
+            Text(
+                stringResource(R.string.protection), fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+        item {
+            GlassCard(Modifier.fillMaxWidth()) {
+                ProtRow(
+                    Icons.Default.VerifiedUser,
+                    stringResource(R.string.realtime),
+                    if (sched) stringResource(R.string.scan_on) else stringResource(R.string.scan_off)
+                ) {
+                    Switch(
+                        checked = sched,
+                        onCheckedChange = { on ->
+                            scope.launch {
+                                ctx.dataStore.edit { it[PrefsKeys.SCHED] = on }
+                                if (on) com.alvand.securityscanner.scanner.ScanWorker.schedule(ctx)
+                                else com.alvand.securityscanner.scanner.ScanWorker.cancel(ctx)
+                            }
+                        }
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(onClick = {
-                        if (Build.VERSION.SDK_INT >= 33 &&
-                            ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
-                            android.content.pm.PackageManager.PERMISSION_GRANTED
-                        ) {
-                            try { notifLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) } catch (_: Exception) { }
-                        }
-                        vm.scan(ctx, showSystem)
-                    }, enabled = !vm.scanning.value && !vm.unifiedScanning.value, modifier = Modifier.weight(1f)) {
-                        Text(if (vm.scanning.value) stringResource(R.string.scanning) else stringResource(R.string.scan_now))
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                ProtRow(Icons.Default.Wifi, stringResource(R.string.wifi_sec), stringResource(R.string.wifi_desc)) {
+                    IconButton(onClick = {
+                        try { ctx.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS)) } catch (_: Exception) { }
+                    }) {
+                        Icon(Icons.Default.ChevronRight, contentDescription = null)
                     }
                 }
-                if (vm.fileTreeUri.value == null) {
-                    Text(stringResource(R.string.scan_all_needs_folder), fontSize = 11.sp)
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                ProtRow(Icons.Default.Storage, stringResource(R.string.database), stringResource(R.string.db_desc)) {
+                    IconButton(onClick = onSettings) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                    }
+                }
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                ProtRow(
+                    Icons.Default.Notifications,
+                    stringResource(R.string.notif_title),
+                    if (notifOn) stringResource(R.string.notif_on) else stringResource(R.string.notif_off)
+                ) {
+                    IconButton(onClick = { if (!notifOn) askNotif() else openNotifSettings() }) {
+                        Icon(Icons.Default.ChevronRight, contentDescription = null)
+                    }
+                }
+            }
+        }
+        item {
+            GlassCard(Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = query, onValueChange = { query = it },
+                    label = { Text(stringResource(R.string.search_apps)) },
+                    singleLine = true, modifier = Modifier.fillMaxWidth()
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = onlyThreats, onCheckedChange = { onlyThreats = it })
+                    Text(stringResource(R.string.only_threats), fontSize = 12.sp)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = showSystem, onCheckedChange = { showSystem = it })
                     Text(stringResource(R.string.show_system_apps), fontSize = 12.sp)
                 }
-                Text("${stringResource(R.string.apps_scanned)}: ${vm.findings.value.size}   •   ${stringResource(R.string.threats)}: ${vm.findings.value.count { it.verdict == Verdict.DANGEROUS }}",
-                    fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
-            }
-        }
-        if (vm.findings.value.isNotEmpty()) {
-            item {
-                GlassCard(Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = query, onValueChange = { query = it },
-                        label = { Text(stringResource(R.string.search_apps)) },
-                        singleLine = true, modifier = Modifier.fillMaxWidth()
+                if (vm.findings.value.isNotEmpty()) {
+                    Text(
+                        "${stringResource(R.string.apps_scanned)}: ${vm.findings.value.size}   •   ${stringResource(R.string.threats)}: ${vm.findings.value.count { it.verdict == Verdict.DANGEROUS }}",
+                        fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp)
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = onlyThreats, onCheckedChange = { onlyThreats = it })
-                        Text(stringResource(R.string.only_threats), fontSize = 12.sp)
-                    }
                 }
             }
         }
@@ -518,6 +688,7 @@ fun Dashboard(vm: ScanViewModel) {
         }
     }
     selected?.let { com.alvand.securityscanner.ui.DetailsDialog(it) { selected = null } }
+    if (webOpen) WebScanDialog { webOpen = false }
 }
 
 @Composable
@@ -555,6 +726,320 @@ fun AppRow(
             }
         }
     }
+}
+
+@Composable
+fun ScoreRing(score: Int?) {
+    val s = (score ?: 0).coerceIn(0, 100)
+    val frac = s / 100f
+    val ring: Brush
+    val label: String
+    val sub: String
+    when {
+        score == null || s >= 80 -> {
+            ring = Brush.linearGradient(listOf(Color(0xFF5B8DEF), Color(0xFFE08BD4)))
+            label = stringResource(R.string.safe)
+            sub = stringResource(R.string.no_threats)
+        }
+        s >= 50 -> {
+            ring = Brush.linearGradient(listOf(Color(0xFFFFB300), Color(0xFFFF7043)))
+            label = stringResource(R.string.review_needed)
+            sub = stringResource(R.string.suspicious)
+        }
+        else -> {
+            ring = Brush.linearGradient(listOf(Color(0xFFFF5252), Color(0xFFD81B60)))
+            label = stringResource(R.string.dangerous)
+            sub = stringResource(R.string.infected)
+        }
+    }
+    Box(Modifier.size(220.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val stroke = 15.dp.toPx()
+            drawArc(Color(0xFF8FA2FF), 0f, 360f, false, style = Stroke(stroke, cap = StrokeCap.Round), alpha = 0.18f)
+            if (frac > 0f) drawArc(ring, -90f, 360f * frac, false, style = Stroke(stroke, cap = StrokeCap.Round))
+            val inset = 30.dp.toPx()
+            drawArc(
+                Color(0xFF8A8FA3), 0f, 360f, false,
+                style = Stroke(2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 7f), 0f)),
+                alpha = 0.45f,
+                topLeft = Offset(inset, inset),
+                size = Size(size.width - inset * 2f, size.height - inset * 2f)
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = Color(0xFF5B7CFF), modifier = Modifier.size(38.dp))
+            Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(if (score == null) "--%" else "$s%", fontSize = 44.sp, fontWeight = FontWeight.Bold)
+            Text(sub, fontSize = 12.sp, color = Color(0xFF5B7CFF))
+        }
+    }
+}
+
+@Composable
+fun MiniScanCard(mod: Modifier, icon: ImageVector, title: String, desc: String, onClick: () -> Unit) {
+    GlassCard(mod.clickable(onClick = onClick)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+            Spacer(Modifier.height(4.dp))
+            Text(title, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(desc, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun ProtRow(icon: ImageVector, title: String, sub: String, action: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(sub, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        action()
+    }
+}
+
+@Composable
+fun Radar(active: Boolean) {
+    val sweep = if (active) {
+        rememberInfiniteTransition(label = "radar").animateFloat(
+            initialValue = 0f, targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 2600, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "sweep"
+        ).value
+    } else 0f
+    Box(Modifier.size(260.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val cx = size.width / 2f
+            val cy = size.height / 2f
+            val r = minOf(cx, cy)
+            for (f in listOf(0.34f, 0.56f, 0.78f, 1f)) {
+                drawCircle(Color(0xFF8FA2FF), r * f, style = Stroke(1.5.dp.toPx()), alpha = 0.45f)
+            }
+            if (active) {
+                rotate(sweep) {
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            0f to Color.Transparent,
+                            0.22f to Color(0xFF6B7CFF).copy(alpha = 0.55f),
+                            0.26f to Color.Transparent,
+                            center = Offset(cx, cy)
+                        ),
+                        startAngle = 0f, sweepAngle = 360f, useCenter = true,
+                        topLeft = Offset(cx - r, cy - r),
+                        size = Size(r * 2f, r * 2f)
+                    )
+                }
+            }
+        }
+        OrbitChip(Modifier.align(Alignment.TopCenter).offset(y = (-14).dp), Icons.Default.BugReport)
+        OrbitChip(Modifier.align(Alignment.CenterEnd).offset(x = 14.dp), Icons.Default.Wifi)
+        OrbitChip(Modifier.align(Alignment.CenterStart).offset(x = (-14).dp), Icons.Default.Lock)
+        OrbitChip(Modifier.align(Alignment.BottomCenter).offset(y = 14.dp), Icons.Default.Description)
+        Surface(
+            color = MaterialTheme.colorScheme.surface, shape = CircleShape,
+            shadowElevation = 8.dp, modifier = Modifier.size(110.dp)
+        ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = Color(0xFF6B7CFF), modifier = Modifier.size(52.dp))
+                Icon(
+                    Icons.Default.Search, contentDescription = null, tint = Color(0xFF6B7CFF),
+                    modifier = Modifier.size(22.dp).align(Alignment.BottomEnd).offset(x = (-22).dp, y = (-22).dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun OrbitChip(mod: Modifier, icon: ImageVector) {
+    Surface(color = MaterialTheme.colorScheme.surface, shape = CircleShape, shadowElevation = 4.dp, modifier = mod.size(40.dp)) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = Color(0xFF6B7CFF), modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+@Composable
+fun ScanStat(value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+fun EngineRow(icon: ImageVector, title: String, count: String, active: Boolean) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(title, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        if (active) {
+            Text(stringResource(R.string.checking), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(6.dp))
+            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+        } else {
+            Text(count, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun ScanScreen(vm: ScanViewModel, onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    val active = vm.unifiedScanning.value || vm.scanning.value || vm.fileScanning.value
+    val appDanger = vm.findings.value.count { it.verdict == Verdict.DANGEROUS }
+    val fileDanger = vm.fileFindings.value.count { it.verdict == com.alvand.securityscanner.scanner.FileVerdict.DANGEROUS }
+    val threats = appDanger + fileDanger
+    val scanned = vm.findings.value.size + vm.fileFindings.value.size
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(active) {
+        if (active) {
+            while (true) {
+                delay(1000)
+                now = System.currentTimeMillis()
+            }
+        }
+    }
+    val secs = ((now - vm.scanStartMs.value) / 1000).coerceAtLeast(0)
+    val time = "%02d:%02d".format(secs / 60, secs % 60)
+    val prog = when {
+        vm.unifiedScanning.value -> vm.unifiedProgress.value
+        vm.scanning.value -> vm.progress.value
+        vm.fileScanning.value -> vm.fileProgress.value
+        else -> 0f
+    }
+    val stage = when {
+        vm.unifiedScanning.value && vm.unifiedStage.value.isNotBlank() -> vm.unifiedStage.value
+        vm.fileScanning.value && vm.fileCurrent.value.isNotBlank() -> vm.fileCurrent.value
+        else -> ""
+    }
+    LazyColumn(
+        Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
+                Text(stringResource(R.string.full_scan), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.size(48.dp))
+            }
+        }
+        item { Radar(active) }
+        item {
+            Text(
+                if (active) stringResource(R.string.scanning)
+                else if (threats > 0) "${stringResource(R.string.scan_complete)} — $threats ${stringResource(R.string.threats)}"
+                else stringResource(R.string.no_threats),
+                fontSize = 20.sp, fontWeight = FontWeight.Bold
+            )
+            if (stage.isNotBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(stage.take(48), fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+            }
+            Text("$scanned ${stringResource(R.string.scanned_label)}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        item {
+            GlassCard(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    LinearProgressIndicator(prog, Modifier.weight(1f))
+                    Spacer(Modifier.width(8.dp))
+                    Text("${(prog * 100).toInt()}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    ScanStat("$threats", stringResource(R.string.threats))
+                    ScanStat("$scanned", stringResource(R.string.scanned_label))
+                    ScanStat(time, stringResource(R.string.time_label))
+                }
+            }
+        }
+        item {
+            GlassCard(Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.scan_engine), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                EngineRow(Icons.Default.BugReport, stringResource(R.string.malware), "$threats", active)
+                Spacer(Modifier.height(8.dp))
+                EngineRow(
+                    Icons.Default.VerifiedUser, stringResource(R.string.privacy_risks),
+                    "${vm.findings.value.count { it.verdict == Verdict.REVIEW } + vm.fileFindings.value.count { it.verdict == com.alvand.securityscanner.scanner.FileVerdict.REVIEW }}",
+                    active
+                )
+            }
+        }
+        item {
+            if (active) {
+                Button(
+                    onClick = { vm.stopAll() },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6B7CFF))
+                ) {
+                    Icon(Icons.Default.Stop, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.stop_scan))
+                }
+            } else {
+                Button(onClick = { vm.scanAll(ctx) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.new_scan))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WebScanDialog(onClose: () -> Unit) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var url by remember { mutableStateOf("") }
+    var res by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var err by remember { mutableStateOf<String?>(null) }
+    val cloud by ctx.dataStore.data.map { it[PrefsKeys.CLOUD] == true }.collectAsState(false)
+    val vtKey by ctx.dataStore.data.map { it[PrefsKeys.VT_KEY] ?: "" }.collectAsState("")
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text(stringResource(R.string.web_title), fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = url, onValueChange = { url = it },
+                    label = { Text(stringResource(R.string.web_hint)) },
+                    singleLine = true, modifier = Modifier.fillMaxWidth()
+                )
+                if (!cloud || vtKey.isBlank()) Text(stringResource(R.string.cloud_desc), fontSize = 11.sp)
+                if (err != null) Text(err!!, fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                if (res != null) Text("VirusTotal: $res", fontSize = 12.sp)
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                if (!url.trim().startsWith("http")) {
+                    try { err = ctx.getString(R.string.enter_url_valid) } catch (_: Exception) { err = "!" }
+                    return@Button
+                }
+                if (!cloud || vtKey.isBlank()) {
+                    try { err = ctx.getString(R.string.cloud_lookup) } catch (_: Exception) { err = "!" }
+                    return@Button
+                }
+                scope.launch {
+                    busy = true; err = null
+                    res = try {
+                        com.alvand.securityscanner.scanner.lookupVirusTotalUrl(url.trim(), vtKey) ?: "error/offline"
+                    } catch (_: Exception) { "error/offline" }
+                    busy = false
+                }
+            }, enabled = !busy) { Text(if (busy) "…" else stringResource(R.string.check_online)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onClose) { Text(stringResource(R.string.close)) }
+        }
+    )
 }
 
 @Composable

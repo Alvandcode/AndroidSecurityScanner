@@ -66,6 +66,44 @@ fun parseVtVerdict(text: String?): Pair<Int, Int>? {
     return flagged to total
 }
 
+/**
+ * Web Scan: VirusTotal URL reputation (opt-in). Sends ONLY the URL string,
+ * never any file. Uses GET /urls/{base64url} — same quota rules as files.
+ */
+suspend fun lookupVirusTotalUrl(rawUrl: String, apiKey: String): String? =
+    withContext(Dispatchers.IO) {
+        val url = rawUrl.trim()
+        if (apiKey.isBlank()) return@withContext null
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return@withContext null
+        VtCache.get("url:$url")?.let { return@withContext it }
+        VtRateLimiter.waitForSlot()
+        try {
+            val urlId = android.util.Base64.encodeToString(
+                url.toByteArray(Charsets.UTF_8),
+                android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING
+            )
+            val c = (URL("https://www.virustotal.com/api/v3/urls/$urlId").openConnection() as HttpsURLConnection).apply {
+                requestMethod = "GET"
+                setRequestProperty("x-apikey", apiKey.trim())
+                setRequestProperty("User-Agent", "AlvandSecurityScanner/1.5.0")
+                setRequestProperty("Accept", "application/json")
+                connectTimeout = 15000
+                readTimeout = 15000
+            }
+            val res = when (c.responseCode) {
+                200 -> parseVtStats(c.inputStream.bufferedReader().readText())
+                404 -> "unknown (not in VirusTotal)"
+                401 -> "invalid API key (401)"
+                429 -> "quota exceeded (429)"
+                else -> null
+            }
+            if (res != null) VtCache.put("url:$url", res)
+            res
+        } catch (_: Exception) {
+            null
+        }
+    }
+
 private object VtCache {
     private const val MAX = 200
     private val map = object : LinkedHashMap<String, String>(64, 0.75f, true) {

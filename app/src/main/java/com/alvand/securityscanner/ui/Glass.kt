@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 
 // Liquid-glass card: gradient body + light-catching border.
@@ -25,29 +26,33 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun GlassCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val shape = RoundedCornerShape(26.dp)
+    // Light theme: solid white card (translucency would vanish on light bg).
+    // Dark theme: translucent liquid glass.
+    val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val body: Brush = if (light) {
+        Brush.verticalGradient(listOf(Color.White, Color.White))
+    } else {
+        Brush.verticalGradient(
+            listOf(Color.White.copy(alpha = 0.16f), Color.White.copy(alpha = 0.05f))
+        )
+    }
+    val edge: Brush = if (light) {
+        Brush.linearGradient(listOf(Color(0xFFE4E8F4), Color.White, Color(0xFFE4E8F4)))
+    } else {
+        Brush.linearGradient(
+            listOf(
+                Color.White.copy(alpha = 0.50f),
+                Color.White.copy(alpha = 0.10f),
+                Color.White.copy(alpha = 0.32f)
+            )
+        )
+    }
     Column(
         modifier = modifier
-            .shadow(6.dp, shape, clip = false)
+            .shadow(if (light) 3.dp else 6.dp, shape, clip = false)
             .clip(shape)
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.16f),
-                        Color.White.copy(alpha = 0.05f)
-                    )
-                )
-            )
-            .border(
-                1.dp,
-                Brush.linearGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.50f),
-                        Color.White.copy(alpha = 0.10f),
-                        Color.White.copy(alpha = 0.32f)
-                    )
-                ),
-                shape
-            )
+            .background(body)
+            .border(1.dp, edge, shape)
             .padding(16.dp)
     ) {
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
