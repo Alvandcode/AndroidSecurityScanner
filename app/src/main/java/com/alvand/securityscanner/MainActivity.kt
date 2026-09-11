@@ -331,10 +331,26 @@ fun MainTabs(theme: String, lang: String) {
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         bottomBar = {
             NavigationBar {
-                NavigationBarItem(tab == 0, { tab = 0 }, { Icon(Icons.Default.Dashboard, null) }, { Text(stringResource(R.string.dashboard)) })
-                NavigationBarItem(tab == 1, { tab = 1 }, { Icon(Icons.Default.Folder, null) }, { Text(stringResource(R.string.files)) })
-                NavigationBarItem(tab == 2, { tab = 2 }, { Icon(Icons.Default.History, null) }, { Text(stringResource(R.string.history)) })
-                NavigationBarItem(tab == 3, { tab = 3 }, { Icon(Icons.Default.Settings, null) }, { Text(stringResource(R.string.settings)) })
+                NavigationBarItem(
+                    selected = tab == 0, onClick = { tab = 0 },
+                    icon = { Icon(Icons.Default.Dashboard, null) },
+                    label = { Text(stringResource(R.string.dashboard)) }
+                )
+                NavigationBarItem(
+                    selected = tab == 1, onClick = { tab = 1 },
+                    icon = { Icon(Icons.Default.Folder, null) },
+                    label = { Text(stringResource(R.string.files)) }
+                )
+                NavigationBarItem(
+                    selected = tab == 2, onClick = { tab = 2 },
+                    icon = { Icon(Icons.Default.History, null) },
+                    label = { Text(stringResource(R.string.history)) }
+                )
+                NavigationBarItem(
+                    selected = tab == 3, onClick = { tab = 3 },
+                    icon = { Icon(Icons.Default.Settings, null) },
+                    label = { Text(stringResource(R.string.settings)) }
+                )
             }
         }
     ) { pad ->
@@ -755,7 +771,7 @@ fun SettingsScreen(theme: String, lang: String) {
                             ctx.getSharedPreferences("events", Context.MODE_PRIVATE).edit().putString("ui_lang", v).apply()
                             if (Build.VERSION.SDK_INT >= 33) {
                                 val lm = ctx.getSystemService(android.app.LocaleManager::class.java)
-                                lm?.applicationLocales = if (v == "system") android.os.LocaleList.getEmpty() else android.os.LocaleList.forLanguageTags(v)
+                                lm?.applicationLocales = if (v == "system") android.os.LocaleList.forLanguageTags("") else android.os.LocaleList.forLanguageTags(v)
                             }
                             (ctx as? MainActivity)?.recreate()
                         }

@@ -61,8 +61,9 @@ fun parseVtVerdict(text: String?): Pair<Int, Int>? {
     if (text == null) return null
     // "3/92 flagged (malicious=2, suspicious=1)"
     val m = Regex("(\\d+)\\s*/\\s*(\\d+)\\s+flagged").find(text) ?: return null
-    return m.groupValues[1].toIntOrNull() to m.groupValues[2].toIntOrNull()
-        .let { (a, b) -> if (a != null && b != null) a to b else null }
+    val flagged = m.groupValues[1].toIntOrNull() ?: return null
+    val total = m.groupValues[2].toIntOrNull() ?: return null
+    return flagged to total
 }
 
 private object VtCache {
