@@ -1,0 +1,12 @@
+.gradle/
+build/
+app/build/
+local.properties
+keystore/
+release.keystore
+*.jks
+.idea/
+*.iml
+.DS_Store
+# NOTE: debug.keystore is intentionally NOT ignored - it must be committed
+# so all GitHub builds share one signature (install-over works).

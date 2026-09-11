@@ -1,0 +1,56 @@
+name: Release APK
+
+# Push a tag like v1.4.0 -> builds the APK -> appears in Releases automatically.
+# Usage (PowerShell, inside AndroidSecurityScanner folder):
+#   git tag v1.4.0
+#   git push origin v1.4.0
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.7"
+
+      - name: Accept SDK licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Install SDK 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" || true
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Rename APK with tag
+        run: cp app/build/outputs/apk/debug/app-debug.apk "SecurityScanner-${{ github.ref_name }}.apk"
+
+      - name: Publish to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: SecurityScanner-*.apk
+          generate_release_notes: true
+          name: SecurityScanner ${{ github.ref_name }}
+          body: |
+            اسکنر امنیتی اندروید — اپ موبایل (بدون روت).
+
+            نصب: دانلود APK و نصب دستی (اجازه نصب از منبع ناشناس لازم است).
+
+            شامل: اسکن اپ‌ها + اسکن فایل‌ها، امتیاز واحد «اسکن همه»،
+            استعلام اختیاری VirusTotal (فقط SHA)، اندروید 6 تا 17.
