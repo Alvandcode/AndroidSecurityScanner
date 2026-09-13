@@ -46,12 +46,12 @@ fun GlowCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val shape = RoundedCornerShape(24.dp)
+    val shape = RoundedCornerShape(22.dp)
     val alpha: Float = if (pulse) {
         val t = rememberInfiniteTransition(label = "glow")
         t.animateFloat(
-            initialValue = 0.30f,
-            targetValue = 0.78f,
+            initialValue = 0.25f,
+            targetValue = 0.65f,
             animationSpec = infiniteRepeatable(
                 animation = tween(durationMillis = 1600, easing = LinearEasing),
                 repeatMode = RepeatMode.Reverse
@@ -59,32 +59,32 @@ fun GlowCard(
             label = "glowAlpha"
         ).value
     } else {
-        0.55f
+        0.45f
     }
     val edge = Brush.linearGradient(
         listOf(
             glow.copy(alpha = alpha),
-            glow.copy(alpha = alpha * 0.25f),
+            glow.copy(alpha = alpha * 0.15f),
             glow.copy(alpha = alpha)
         )
     )
     Column(
         modifier = modifier
             .shadow(
-                elevation = 10.dp, shape = shape, clip = false,
-                ambientColor = glow.copy(alpha = 0.35f),
-                spotColor = glow.copy(alpha = 0.35f)
+                elevation = 8.dp, shape = shape, clip = false,
+                ambientColor = glow.copy(alpha = 0.20f),
+                spotColor = glow.copy(alpha = 0.20f)
             )
             .clip(shape)
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.28f)
+                        Color.White,
+                        Color(0xFFFBFCFF)
                     )
                 )
             )
-            .border(1.5.dp, edge, shape)
+            .border(1.2.dp, edge, shape)
             .padding(14.dp),
         content = content
     )
@@ -96,11 +96,11 @@ fun CategoryHeader(text: String, dot: Color, modifier: Modifier = Modifier) {
         modifier = modifier.padding(horizontal = 4.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(10.dp).background(dot, androidx.compose.foundation.shape.CircleShape))
+        Box(Modifier.size(8.dp).background(dot, androidx.compose.foundation.shape.CircleShape))
         Spacer(Modifier.width(8.dp))
         Text(
-            text, fontWeight = FontWeight.Bold, fontSize = 15.sp,
-            color = MaterialTheme.colorScheme.onBackground
+            text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+            color = TextPrimary
         )
     }
 }

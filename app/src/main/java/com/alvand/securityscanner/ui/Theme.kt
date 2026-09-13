@@ -5,15 +5,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// Explicit on-colors everywhere: default Material3 dynamic tones made body text
-// near-black on our translucent cards in dark mode (unreadable). These are fixed.
+// Soft blue-purple color scheme matching the clean security scanner design.
 private val LightScheme = lightColorScheme(
-    primary = Color(0xFF5B7CFF), onPrimary = Color.White,
+    primary = Color(0xFF6B7CFF), onPrimary = Color.White,
     secondary = Color(0xFF9B8AFB), onSecondary = Color.White,
-    background = Color(0xFFF3F4FA), onBackground = Color(0xFF1A1D2E),
-    surface = Color.White, onSurface = Color(0xFF1A1D2E),
-    surfaceVariant = Color(0xFFECEFF7), onSurfaceVariant = Color(0xFF5A6072),
-    outline = Color(0xFFD9DEEB)
+    background = Color(0xFFEDF0FA), onBackground = Color(0xFF1A1D2E),
+    surface = Color.White, onSurface = Color(0xFF2D3142),
+    surfaceVariant = Color(0xFFF0F2FA), onSurfaceVariant = Color(0xFF6B7280),
+    outline = Color(0xFFE0E4EF),
+    tertiary = Color(0xFF8B9CF7)
 )
 private val DarkScheme = darkColorScheme(
     primary = Color(0xFF9FA8DA), onPrimary = Color(0xFF0F1420),
@@ -22,13 +22,24 @@ private val DarkScheme = darkColorScheme(
     surface = Color(0xFF182036), onSurface = Color(0xFFE9EDF6),
     surfaceVariant = Color(0xFF232E4D), onSurfaceVariant = Color(0xFFC3CCE0),
     outline = Color(0xFF4A5878),
-    error = Color(0xFFFF8A80), onError = Color(0xFF1A0000)
+    error = Color(0xFFFF8A80), onError = Color(0xFF1A0000),
+    tertiary = Color(0xFF7E9BFF)
 )
 
 // Verdict glow colors (shared by apps + files).
 val GlowDanger = Color(0xFFFF5252)
 val GlowWarn = Color(0xFFFFC107)
 val GlowSafe = Color(0xFF4CAF50)
+
+// Design accent colors
+val AccentBlue = Color(0xFF6B7CFF)
+val AccentPurple = Color(0xFF9B8AFB)
+val AccentPink = Color(0xFFE08BD4)
+val RingBlue = Color(0xFF7B8CFF)
+val RingPink = Color(0xFFE08BD4)
+val TextPrimary = Color(0xFF1A1D2E)
+val TextSecondary = Color(0xFF6B7280)
+val CardShadow = Color(0xFFD0D5E8)
 
 @Composable
 fun AppTheme(theme: String, content: @Composable () -> Unit) {

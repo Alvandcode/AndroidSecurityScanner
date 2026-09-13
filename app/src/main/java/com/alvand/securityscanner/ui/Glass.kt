@@ -20,24 +20,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 
-// Liquid-glass card: gradient body + light-catching border.
-// Text color is forced to onSurface: without this, body text turned near-black
-// on our translucent cards in dark mode (unreadable).
+// Clean white card with subtle shadow matching the minimal security scanner design.
 @Composable
 fun GlassCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    val shape = RoundedCornerShape(26.dp)
-    // Light theme: solid white card (translucency would vanish on light bg).
-    // Dark theme: translucent liquid glass.
+    val shape = RoundedCornerShape(24.dp)
     val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
     val body: Brush = if (light) {
-        Brush.verticalGradient(listOf(Color.White, Color.White))
+        Brush.verticalGradient(listOf(Color.White, Color(0xFFFBFCFF)))
     } else {
         Brush.verticalGradient(
             listOf(Color.White.copy(alpha = 0.16f), Color.White.copy(alpha = 0.05f))
         )
     }
     val edge: Brush = if (light) {
-        Brush.linearGradient(listOf(Color(0xFFE4E8F4), Color.White, Color(0xFFE4E8F4)))
+        Brush.linearGradient(listOf(Color(0xFFE8ECF4), Color.White, Color(0xFFE8ECF4)))
     } else {
         Brush.linearGradient(
             listOf(
@@ -49,11 +45,11 @@ fun GlassCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.()
     }
     Column(
         modifier = modifier
-            .shadow(if (light) 3.dp else 6.dp, shape, clip = false)
+            .shadow(if (light) 6.dp else 8.dp, shape, clip = false, ambientColor = Color(0xFFD0D5E8))
             .clip(shape)
             .background(body)
             .border(1.dp, edge, shape)
-            .padding(16.dp)
+            .padding(18.dp)
     ) {
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
             content()
@@ -61,23 +57,23 @@ fun GlassCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.()
     }
 }
 
+// Soft lavender-blue gradient background matching the clean design.
 @Composable
 fun GlassBackground(isDark: Boolean, content: @Composable () -> Unit) {
     val bg = if (isDark) {
         Brush.verticalGradient(listOf(Color(0xFF0B1020), Color(0xFF16224A), Color(0xFF2A1B4A)))
     } else {
-        Brush.verticalGradient(listOf(Color(0xFFE8EAF6), Color(0xFFF2F4FA), Color(0xFFD8E4FA)))
+        Brush.verticalGradient(listOf(Color(0xFFE8ECF8), Color(0xFFF0F3FC), Color(0xFFDDE4F6)))
     }
     Box(Modifier.fillMaxSize().background(bg)) {
-        // Liquid light blobs (real blur on API 31+, plain translucent otherwise).
         if (Build.VERSION.SDK_INT >= 31) {
             Box(
-                Modifier.size(280.dp).offset(x = (-80).dp, y = (-60).dp).blur(70.dp)
-                    .background(Color(0xFF3D5AFE).copy(alpha = 0.30f), CircleShape)
+                Modifier.size(300.dp).offset(x = (-60).dp, y = (-40).dp).blur(80.dp)
+                    .background(Color(0xFF7B8CFF).copy(alpha = 0.18f), CircleShape)
             )
             Box(
-                Modifier.size(320.dp).align(Alignment.BottomEnd).offset(x = 90.dp, y = 80.dp).blur(80.dp)
-                    .background(Color(0xFF00E5FF).copy(alpha = 0.20f), CircleShape)
+                Modifier.size(350.dp).align(Alignment.BottomEnd).offset(x = 60.dp, y = 60.dp).blur(90.dp)
+                    .background(Color(0xFFB8A4F8).copy(alpha = 0.14f), CircleShape)
             )
         }
         content()
