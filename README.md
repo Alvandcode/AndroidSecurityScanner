@@ -1,5 +1,16 @@
 # AndroidSecurityScanner — Phase 7 (v1.6.0, versionCode 8)
 
+## Prerequisites
+- Android Studio Hedgehog or later.
+- JDK 17 (Gradle toolchain / `jvmTarget 17`).
+- Android SDK 35 (`compileSdk/targetSdk 35`, `minSdk 23`).
+- No root required — scanning uses PackageManager, SAF, and MediaStore only.
+
+## Install (end users)
+1. Download the APK from Releases. If Releases is empty, use Actions > Build Debug APK and download the `app-debug-apk` artifact.
+2. On the device, allow installs from unknown sources (Unknown Sources / Install unknown apps) for your browser or file manager.
+3. Install the APK. `applicationId` is fixed as `com.alvand.securityscanner`, so updates install over the previous version (no uninstall needed) as long as the signing key is the same and `versionCode` is incremented.
+
 ## New in Phase-5
 - **Android 6..17:** `minSdk 23`, `target/compile 35` (forward-compatible).
   Every API-gated call guarded (`InstallSource` 30+, `PackageInfoFlags` 33+,
@@ -60,10 +71,10 @@ virustotal.com > Sign up > API key > paste in Settings > enable lookup.
 
 ## Update path (GitHub web)
 Upload changed files, commit, Actions > Build Debug APK > download artifact.
-versionCode 3 installs OVER v1.0.1 (same applicationId + same debug.keystore).
+versionCode 8 (v1.6.0) installs OVER previous versions (same applicationId + same debug.keystore).
 
 ## What was built
-Native Kotlin + Compose app, `applicationId=com.alvand.securityscanner`, versionCode=1 / versionName=1.0.0.
+Native Kotlin + Compose app, `applicationId=com.alvand.securityscanner`, versionCode=8 / versionName=1.6.0.
 - Dashboard with glassmorphism cards, device score 0..100, scan progress
 - Real scanner via PackageManager (no root): permissions analysis + installer source + debuggable flag + combo rules
 - History (last score/date + full list), Settings (dark/light/system, FA/EN/system)
@@ -91,10 +102,14 @@ Send the logo and I will wire it in.
 - `ui/Theme.kt`: Material3 light/dark, `theme` pref (system|light|dark) in DataStore.
 - `values/strings.xml` (en) + `values-fa/strings.xml` (fa), RTL supported. Language pref (system|en|fa) uses per-app locales on Android 13+ and recreates activity.
 
-## Build (Android Studio required — this PC has no Java/SDK)
-1. Install Android Studio Hedgehog+, open folder `AndroidSecurityScanner`.
-2. Let Gradle sync, then Run > app. Or: `./gradlew :app:assembleDebug`.
-3. APK output: `app/build/outputs/apk/debug/app-debug.apk` — install over previous version, no uninstall.
+## Build from source
+Prerequisites: Android Studio Hedgehog+, JDK 17, Android SDK 35 (see Prerequisites above).
+1. Open folder `AndroidSecurityScanner` in Android Studio and let Gradle sync.
+2. Build the debug APK:
+   ```
+   ./gradlew assembleDebug
+   ```
+3. APK output: `app/build/outputs/apk/debug/app-debug.apk` — install over previous version, no uninstall (same `applicationId=com.alvand.securityscanner` + same signing key, higher `versionCode`).
 
 ## Next (Phase-2 hooks ready)
 - `InstallReceiver` currently stores last installed pkg; wire to foreground rescan + notification.
