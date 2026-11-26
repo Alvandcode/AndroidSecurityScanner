@@ -1,10 +1,42 @@
-# AndroidSecurityScanner — Phase 7 (v1.6.0, versionCode 8)
+# AndroidSecurityScanner — Phase 8 (v1.7.0, versionCode 9)
 
 ## Prerequisites
 - Android Studio Hedgehog or later.
 - JDK 17 (Gradle toolchain / `jvmTarget 17`).
 - Android SDK 35 (`compileSdk/targetSdk 35`, `minSdk 23`).
-- No root required — scanning uses PackageManager, SAF, and MediaStore only.
+- No root required — scanning uses PackageManager + SAF only (no MediaStore query,
+  so no storage permissions are requested).
+
+## New in Phase-8 (v1.7.0)
+- **Files tab is back:** the v1.6.0 redesign dropped it from the bottom bar, which
+  made the whole file-scan feature unreachable. Home / Files / Scan (FAB) / History / Settings.
+- **Idol Catalog reputation engine** (https://github.com/Alvandcode/idol-store-catalog):
+  the app downloads the public `security-results.json` published by that repo's CI
+  (ClamAV + YARA + OSV + Semgrep + Gitleaks + binary inspection) and matches
+  installed apps (by applicationId) and hashed files (by SHA-256) against it.
+  Read-only: nothing is ever sent from the device. Cached 6h. On by default,
+  toggle in Settings. DANGEROUS verdicts are never downgraded; inconclusive
+  statuses (INCOMPLETE/SCAN_ERROR/NOT_SCANNED) never change a score.
+- **Honest score ring:** before any scan the ring shows neutral "Not scanned yet"
+  (it used to show green "Safe" before you had scanned anything).
+- **Real-time toggle is now real:** the Home switch controls install-time
+  alerts/scan (InstallReceiver) via WorkManager instead of silently re-using the
+  daily-schedule preference.
+- **Install-time scan moved to WorkManager:** no more bare CoroutineScope inside
+  the broadcast receiver; per-package unique work survives process death.
+- **Notification IDs are per-package**, so bursts of installs no longer overwrite
+  each other.
+- **Device health card:** possible root / ADB / developer-options findings are now
+  actually shown on the dashboard (the code existed but was never displayed).
+- **Model fix:** the review penalty in device/file scores is capped (a device full
+  of permission-heavy system apps can no longer drag the score to 0).
+- **VT rate limiter race fixed** (mutex), **User-Agent bumped to 1.7.0**.
+- **Privacy:** removed the unused READ_MEDIA_IMAGES/VIDEO/AUDIO and
+  READ_EXTERNAL_STORAGE permissions — file scan is SAF-only, no MediaStore query.
+- **Unit tests** for the risk model + catalog JSON parsing (`RiskEngineTest`).
+
+## Prerequisites (unchanged)
+- JDK 17, Android SDK 35.
 
 ## Install (end users)
 1. Download the APK from Releases. If Releases is empty, use Actions > Build Debug APK and download the `app-debug-apk` artifact.

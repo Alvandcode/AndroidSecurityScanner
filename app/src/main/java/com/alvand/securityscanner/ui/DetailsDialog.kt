@@ -42,6 +42,18 @@ fun DetailsDialog(f: AppFinding, onClose: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(f.packageName, fontSize = 11.sp)
                 Text("${f.score}/100")
+                if (f.catalogStatus != null) {
+                    val catColor = when (f.catalogStatus) {
+                        "DANGEROUS" -> com.alvand.securityscanner.ui.GlowDanger
+                        "WARNING" -> com.alvand.securityscanner.ui.GlowWarn
+                        "SAFE", "LOW_RISK" -> com.alvand.securityscanner.ui.GlowSafe
+                        else -> com.alvand.securityscanner.ui.TextSecondary
+                    }
+                    Text(
+                        "${stringResource(R.string.catalog_label)}: ${f.catalogStatus}",
+                        fontSize = 12.sp, color = catColor, fontWeight = FontWeight.SemiBold
+                    )
+                }
                 val installerFriendly = com.alvand.securityscanner.scanner.RiskEngine.installerLabel(f.installer)
                 Text("${stringResource(R.string.installer)}: $installerFriendly (${f.installer ?: "?"})", fontSize = 12.sp)
                 val target = det?.targetSdk

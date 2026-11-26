@@ -111,4 +111,15 @@
     <string name="donate_desc">Donate TON to keep the app free and updated.</string>
     <string name="donate_copy">Copy address</string>
     <string name="donate_open">Open wallet</string>
+    <string name="not_scanned">Not scanned yet</string>
+    <string name="not_scanned_sub">Tap the scan button to check your device</string>
+    <string name="device_health">Device health</string>
+    <string name="health_root">Possible root access detected</string>
+    <string name="health_adb">USB debugging (ADB) is enabled</string>
+    <string name="health_dev">Developer options are enabled</string>
+    <string name="health_ok">No system-level warnings found</string>
+    <string name="catalog_title">Idol Catalog reputation</string>
+    <string name="catalog_desc">Downloads the public security report of the Idol Store catalog (ClamAV, YARA, OSV, Semgrep, Gitleaks) and matches installed apps and file hashes against it. Read-only: nothing is sent from your device.</string>
+    <string name="catalog_label">Idol Catalog</string>
+    <string name="catalog_stage">Idol Catalog…</string>
 </resources>

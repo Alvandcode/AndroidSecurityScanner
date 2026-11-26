@@ -54,8 +54,10 @@ fun notifyNewApp(ctx: Context, pkg: String) {
     if (!hasNotifPermission(ctx)) return
     ensureChannel(ctx)
     val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
+    // Per-package ID so consecutive installs don't overwrite each other.
+    val notifId = 1000 + (pkg.hashCode() and 0x7FFFFFFF) % 100000
     nm.notify(
-        1002,
+        notifId,
         NotificationCompat.Builder(ctx, CH)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(pkg)
@@ -73,8 +75,9 @@ fun notifyVerdict(ctx: Context, f: AppFinding) {
         Verdict.REVIEW -> ctx.getString(R.string.review_needed)
         else -> ctx.getString(R.string.safe)
     }
+    val notifId = 2000 + (f.packageName.hashCode() and 0x7FFFFFFF) % 100000
     nm.notify(
-        1003,
+        notifId,
         NotificationCompat.Builder(ctx, CH)
             .setSmallIcon(
                 if (f.verdict == Verdict.SAFE) android.R.drawable.ic_dialog_info

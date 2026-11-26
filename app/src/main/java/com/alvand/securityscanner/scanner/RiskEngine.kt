@@ -12,7 +12,8 @@ data class AppFinding(
     val unknownSource: Boolean,
     val score: Int, // 0..100, 100 = safe
     val verdict: Verdict,
-    val reasons: List<String>
+    val reasons: List<String>,
+    val catalogStatus: String? = null   // Idol Catalog overall_status, null = not in catalog
 )
 
 enum class Verdict { SAFE, REVIEW, DANGEROUS }
@@ -110,13 +111,15 @@ object RiskEngine {
      * Device score must NOT be a plain average: one banker-trojan among
      * 200 safe apps would still show 99/100. Weight by severity and
      * cap by the worst app so a single DANGEROUS app is always visible.
+     * The review penalty is capped so a device full of system apps that
+     * merely hold broad permissions can never drag the score to 0.
      */
     fun deviceScore(findings: List<AppFinding>): Int {
         if (findings.isEmpty()) return 100
         val dangerous = findings.count { it.verdict == Verdict.DANGEROUS }
         val review = findings.count { it.verdict == Verdict.REVIEW }
         val worst = findings.minOf { it.score }
-        val penalty = dangerous * 12 + review * 3
+        val penalty = (dangerous * 12 + review * 3).coerceAtMost(65)
         return minOf(100 - penalty, worst + 15).coerceIn(0, 100)
     }
 
@@ -126,7 +129,7 @@ object RiskEngine {
         val dangerous = files.count { it.verdict == FileVerdict.DANGEROUS }
         val review = files.count { it.verdict == FileVerdict.REVIEW }
         val worst = files.minOf { it.score }
-        val penalty = dangerous * 12 + review * 3
+        val penalty = (dangerous * 12 + review * 3).coerceAtMost(65)
         return minOf(100 - penalty, worst + 15).coerceIn(0, 100)
     }
 
@@ -138,5 +141,74 @@ object RiskEngine {
     fun unifiedScore(appScore: Int, fileScore: Int, hasFiles: Boolean): Int {
         return if (hasFiles) minOf(appScore, fileScore).coerceIn(0, 100)
         else appScore.coerceIn(0, 100)
+    }
+
+    /**
+     * Merge Idol Catalog status into an app verdict. Catalog evidence
+     * TRUSTED over local heuristics: ClamAV/YARA detections are real
+     * engine results, not name guesses.
+     *  - DANGEROUS  → verdict forced DANGEROUS (never downgraded)
+     *  - WARNING    → extra deduction, verdict at least REVIEW
+     *  - SAFE / LOW_RISK → kept (never silently upgraded past REVIEW;
+     *    local combos like accessibility+overlay still stand)
+     *  - INCOMPLETE / SCAN_ERROR / NOT_SCANNED → no score change
+     *    (an unfinished scan must never read as "clean" nor as "bad").
+     */
+    fun applyCatalog(
+        score: Int,
+        verdict: Verdict,
+        reasons: List<String>,
+        catalogStatus: String?
+    ): Triple<Int, Verdict, List<String>> {
+        if (catalogStatus == null) return Triple(score, verdict, reasons)
+        val out = reasons.toMutableList()
+        return when (catalogStatus) {
+            CatalogStatus.DANGEROUS -> {
+                out.add("CATALOG_DANGEROUS")
+                Triple(minOf(score, 30), Verdict.DANGEROUS, out)
+            }
+            CatalogStatus.WARNING -> {
+                out.add("CATALOG_WARNING")
+                val s = (score - 10).coerceIn(0, 100)
+                val v = if (verdict == Verdict.SAFE) Verdict.REVIEW else verdict
+                Triple(s, v, out)
+            }
+            else -> Triple(score, verdict, reasons)
+        }
+    }
+
+    /**
+     * Merge catalog asset evidence into a file verdict.
+     *  - hash flagged malware_detected → DANGEROUS, capped score
+     *  - hash scanned clean on a SAFE/LOW_RISK app → name-based suspicion
+     *    (SUSPICIOUS_NAME / double extension) alone cannot hold it at REVIEW.
+     */
+    fun applyCatalogToFile(
+        score: Int,
+        verdict: FileVerdict,
+        reasons: List<String>,
+        asset: CatalogAsset?,
+        appStatus: String?
+    ): Triple<Int, FileVerdict, List<String>> {
+        if (asset == null) return Triple(score, verdict, reasons)
+        val out = reasons.toMutableList()
+        return when {
+            asset.status == CatalogStatus.A_MALWARE -> {
+                out.add("CATALOG_MALWARE_HASH")
+                Triple(minOf(score, 20), FileVerdict.DANGEROUS, out)
+            }
+            asset.status == CatalogStatus.A_SUSPICIOUS -> {
+                out.add("CATALOG_SUSPICIOUS")
+                val v = if (verdict == FileVerdict.SAFE) FileVerdict.REVIEW else verdict
+                Triple((score - 10).coerceIn(0, 100), v, out)
+            }
+            asset.status == CatalogStatus.A_NO_DETECTION &&
+                    (appStatus == CatalogStatus.SAFE || appStatus == CatalogStatus.LOW_RISK) -> {
+                out.add("CATALOG_KNOWN_GOOD")
+                val v = if (verdict == FileVerdict.REVIEW) FileVerdict.SAFE else verdict
+                Triple(maxOf(score, 90), v, out)
+            }
+            else -> Triple(score, verdict, reasons)
+        }
     }
 }

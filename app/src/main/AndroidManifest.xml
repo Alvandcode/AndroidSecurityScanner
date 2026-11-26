@@ -10,11 +10,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Needed for scheduled background scan -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- File scan is SAF-based (no broad access). These only widen MediaStore visibility. -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- File scan is SAF-based (no broad access). No media/storage permissions:
+         the app never queries MediaStore, so requesting READ_MEDIA_* would be
+         extra surface for nothing. -->
 
     <application
         android:allowBackup="false"

@@ -72,6 +72,7 @@ object FileScanner {
     suspend fun scanTree(
         ctx: Context,
         treeUri: Uri,
+        catalog: CatalogData? = null,
         onProgress: (FileScanProgress) -> Unit = {}
     ): FileScanResult = withContext(Dispatchers.IO) {
         val out = mutableListOf<FileFinding>()
@@ -111,7 +112,7 @@ object FileScanner {
             val name = try { doc.name ?: "?" } catch (_: Exception) { "?" }
             try { onProgress(FileScanProgress(i + 1, flat.size, name)) } catch (_: Exception) { }
             try {
-                out.add(analyzeOne(ctx, doc))
+                out.add(analyzeOne(ctx, doc, catalog))
             } catch (_: Exception) {
                 out.add(
                     FileFinding(name, doc.uri.toString(), null, -1, null, FileVerdict.SAFE, emptyList(), false, null, 100)
@@ -122,7 +123,7 @@ object FileScanner {
         FileScanResult(out.sortedBy { it.score }, truncated)
     }
 
-    private suspend fun analyzeOne(ctx: Context, doc: DocumentFile): FileFinding {
+    private suspend fun analyzeOne(ctx: Context, doc: DocumentFile, catalog: CatalogData? = null): FileFinding {
         val uri = doc.uri
         val name = try { doc.name ?: "unknown" } catch (_: Exception) { "unknown" }
         val size = try { doc.length() } catch (_: Exception) { -1L }
@@ -155,7 +156,7 @@ object FileScanner {
 
         // --- Hash (bounded) ---
         val sha = hashUri(ctx, uri, MAX_HASH_BYTES)
-        if (sha != null && KnownBadHashes.contains(sha.lowercase())) {
+        if (sha != null && KnownBadHashes.contains(sha)) {
             deduction += 60; reasons.add("KNOWN_MALWARE_HASH")
         }
 
@@ -185,11 +186,19 @@ object FileScanner {
             reasons.add("APK_TOO_BIG_TO_PARSE")
         }
 
-        val score = (100 - deduction).coerceIn(0, 100)
-        val verdict = when {
+        var score = (100 - deduction).coerceIn(0, 100)
+        var verdict = when {
             score >= 80 -> FileVerdict.SAFE
             score >= 50 -> FileVerdict.REVIEW
             else -> FileVerdict.DANGEROUS
+        }
+        // --- Idol Catalog asset evidence (trusted over name heuristics) ---
+        if (sha != null) {
+            val asset = catalog?.assetFor(sha)
+            if (asset != null) {
+                val merged = RiskEngine.applyCatalogToFile(score, verdict, reasons, asset, asset.appStatus)
+                score = merged.first; verdict = merged.second; reasons = merged.third
+            }
         }
         return FileFinding(
             displayName = name, uriString = uri.toString(), mime = mime,
@@ -285,12 +294,15 @@ object FileScanner {
 }
 
 /**
- * Local known-bad SHA-256 set. Ships empty; OTA/cloud can fill it later.
- * (Deliberately NOT hardcoding the old Python script's empty-file hash.)
+ * Local known-bad SHA-256 set. Starts empty; the Idol Store Catalog
+ * (CatalogReputation) fills it with asset hashes ClamAV/YARA flagged as
+ * malware_detected. Case-insensitive membership.
  */
 object KnownBadHashes {
-    val hashes: Set<String> = emptySet()
-    fun contains(sha: String): Boolean = hashes.contains(sha)
+    @Volatile private var hashes: Set<String> = emptySet()
+    fun replaceAll(list: List<String>) { hashes = list.map { it.lowercase() }.toSet() }
+    val size: Int get() = hashes.size
+    fun contains(sha: String): Boolean = hashes.contains(sha.lowercase())
 }
 
 /** Persisted SAF tree helpers. */

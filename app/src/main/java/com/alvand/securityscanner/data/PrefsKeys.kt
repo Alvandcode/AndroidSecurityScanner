@@ -14,4 +14,8 @@ object PrefsKeys {
     val SCHED = booleanPreferencesKey("scheduled_scan") // default false
     // Phase-3: user-granted SAF folder for file scan (persisted tree uri string)
     val FILE_TREE = stringPreferencesKey("file_tree_uri")
+    // Install-time alerts (receiver gate). Default true.
+    val REALTIME = booleanPreferencesKey("realtime_protection")
+    // Idol Catalog reputation (read-only public JSON download). Default true.
+    val CATALOG = booleanPreferencesKey("catalog_reputation")
 }

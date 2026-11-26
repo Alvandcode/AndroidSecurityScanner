@@ -38,6 +38,9 @@ jobs:
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
 
+      - name: Run unit tests
+        run: gradle :app:testDebugUnitTest --stacktrace
+
       - name: Rename APK with tag
         run: cp app/build/outputs/apk/debug/app-debug.apk "SecurityScanner-${{ github.ref_name }}.apk"
 

@@ -36,7 +36,7 @@ private suspend fun lookupVirusTotalNetwork(sha256: String, apiKey: String): Str
                 requestMethod = "GET"
                 // Never log the key. Key goes only in this header over HTTPS.
                 setRequestProperty("x-apikey", apiKey)
-                setRequestProperty("User-Agent", "AlvandSecurityScanner/1.4.0")
+                setRequestProperty("User-Agent", "AlvandSecurityScanner/1.7.0")
                 setRequestProperty("Accept", "application/json")
                 connectTimeout = 15000
                 readTimeout = 15000
@@ -85,7 +85,7 @@ suspend fun lookupVirusTotalUrl(rawUrl: String, apiKey: String): String? =
             val c = (URL("https://www.virustotal.com/api/v3/urls/$urlId").openConnection() as HttpsURLConnection).apply {
                 requestMethod = "GET"
                 setRequestProperty("x-apikey", apiKey.trim())
-                setRequestProperty("User-Agent", "AlvandSecurityScanner/1.5.0")
+                setRequestProperty("User-Agent", "AlvandSecurityScanner/1.7.0")
                 setRequestProperty("Accept", "application/json")
                 connectTimeout = 15000
                 readTimeout = 15000
@@ -115,15 +115,19 @@ private object VtCache {
 
 private object VtRateLimiter {
     // Free tier: 4 lookups / minute. Keep 16s gap between NETWORK calls.
+    // Mutex-guarded so concurrent callers (details dialog + file scan +
+    // scan-all) can never bypass the gap and burn the daily quota.
     private const val GAP_MS = 16_000L
+    private val mutex = kotlinx.coroutines.sync.Mutex()
     private var lastCall = 0L
     suspend fun waitForSlot() {
-        val now = System.currentTimeMillis()
-        val wait = GAP_MS - (now - lastCall)
-        if (wait > 0) {
-            try { kotlinx.coroutines.delay(wait) } catch (_: Exception) { }
+        mutex.withLock {
+            val wait = GAP_MS - (System.currentTimeMillis() - lastCall)
+            if (wait > 0) {
+                try { kotlinx.coroutines.delay(wait) } catch (_: Exception) { }
+            }
+            lastCall = System.currentTimeMillis()
         }
-        lastCall = System.currentTimeMillis()
     }
 }
 

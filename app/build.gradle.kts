@@ -20,8 +20,8 @@ android {
         // Increment versionCode on every release, keep versionName human-readable.
         // Install-over works only if applicationId + signing key are identical
         // and new versionCode > old versionCode.
-        versionCode = 8
-        versionName = "1.6.0"
+        versionCode = 9
+        versionName = "1.7.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -93,4 +93,8 @@ dependencies {
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    testImplementation("junit:junit:4.13.2")
+    // Real org.json for local unit tests (android.jar stubs throw otherwise).
+    testImplementation("org.json:json:20240303")
 }

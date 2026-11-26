@@ -9,12 +9,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
+/** Statuses that are NOT evidence of anything — never treated as clean. */
+private val UNCONCLUSIVE_CATALOG = setOf(
+    CatalogStatus.INCOMPLETE, CatalogStatus.NOT_SCANNED, CatalogStatus.SCAN_ERROR
+)
+
 class AppScanner(private val context: Context) {
 
     data class Progress(val done: Int, val total: Int)
 
     suspend fun scanAll(
         includeSystem: Boolean = false,
+        catalog: CatalogData? = null,
         onProgress: (Progress) -> Unit = {}
     ): List<AppFinding> = withContext(Dispatchers.Default) {
         val pm = context.packageManager
@@ -48,7 +54,13 @@ class AppScanner(private val context: Context) {
 
             val debuggable = (ai.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
             val targetSdk = ai.targetSdkVersion
-            val (score, verdict, reasons) = RiskEngine.score(perms, unknownSource, debuggable, isSystem, targetSdk)
+            var (score, verdict, reasons) = RiskEngine.score(perms, unknownSource, debuggable, isSystem, targetSdk)
+            // Idol Catalog evidence (opt-out in Settings; read-only public JSON).
+            val catalogApp = catalog?.appFor(pkg.packageName)
+            if (catalogApp != null && catalogApp.status !in UNCONCLUSIVE_CATALOG) {
+                val merged = RiskEngine.applyCatalog(score, verdict, reasons, catalogApp.status)
+                score = merged.first; verdict = merged.second; reasons = merged.third
+            }
 
             val risky = perms.map { it.substringAfterLast('.') }
                 .distinct()
@@ -70,7 +82,8 @@ class AppScanner(private val context: Context) {
                     unknownSource = unknownSource && !isSystem,
                     score = score,
                     verdict = verdict,
-                    reasons = reasons
+                    reasons = reasons,
+                    catalogStatus = catalogApp?.takeIf { it.status !in UNCONCLUSIVE_CATALOG }?.status
                 )
             )
             onProgress(Progress(i + 1, pkgs.size))
@@ -79,7 +92,10 @@ class AppScanner(private val context: Context) {
     }
 
     /** Lightweight single-package scan for install-time alerts. */
-    suspend fun scanOne(packageName: String): AppFinding? = withContext(Dispatchers.Default) {
+    suspend fun scanOne(
+        packageName: String,
+        catalog: CatalogData? = null
+    ): AppFinding? = withContext(Dispatchers.Default) {
         try {
             val pm = context.packageManager
             val pkg: PackageInfo = if (Build.VERSION.SDK_INT >= 33) {
@@ -105,9 +121,14 @@ class AppScanner(private val context: Context) {
             } catch (_: Exception) { null }
             val unknownSource = installer == null || installer !in RiskEngine.trustedInstallers
             val debuggable = (ai.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-            val (score, verdict, reasons) = RiskEngine.score(
+            var (score, verdict, reasons) = RiskEngine.score(
                 perms, unknownSource, debuggable, isSystem, ai.targetSdkVersion
             )
+            val catalogApp = catalog?.appFor(packageName)
+            if (catalogApp != null && catalogApp.status !in UNCONCLUSIVE_CATALOG) {
+                val merged = RiskEngine.applyCatalog(score, verdict, reasons, catalogApp.status)
+                score = merged.first; verdict = merged.second; reasons = merged.third
+            }
             val risky = perms.map { it.substringAfterLast('.') }.distinct()
                 .mapNotNull { short ->
                     RiskEngine.weights[short]?.let {
@@ -125,7 +146,8 @@ class AppScanner(private val context: Context) {
                 unknownSource = unknownSource && !isSystem,
                 score = score,
                 verdict = verdict,
-                reasons = reasons
+                reasons = reasons,
+                catalogStatus = catalogApp?.takeIf { it.status !in UNCONCLUSIVE_CATALOG }?.status
             )
         } catch (_: Exception) { null }
     }

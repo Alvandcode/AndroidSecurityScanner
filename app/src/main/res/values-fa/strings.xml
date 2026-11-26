@@ -111,4 +111,15 @@
     <string name="donate_desc">با واریز تون‌کوین از توسعه و رایگان ماندن اپ حمایت کنید.</string>
     <string name="donate_copy">کپی آدرس</string>
     <string name="donate_open">باز کردن کیف پول</string>
+    <string name="not_scanned">هنوز اسکن نشده</string>
+    <string name="not_scanned_sub">برای بررسی دستگاه، دکمه اسکن را بزن</string>
+    <string name="device_health">سلامت دستگاه</string>
+    <string name="health_root">دسترسی روت احتمالی پیدا شد</string>
+    <string name="health_adb">دیباگ USB (ADB) روشن است</string>
+    <string name="health_dev">گزینه‌های توسعه‌دهنده روشن است</string>
+    <string name="health_ok">هیچ هشدار سطح سیستمی پیدا نشد</string>
+    <string name="catalog_title">اعتبار کاتالوگ Idol</string>
+    <string name="catalog_desc">گزارش امنیتی عمومی کاتالوگ Idol Store (شامل ClamAV، YARA، OSV، Semgrep و Gitleaks) را دانلود و برنامه‌های نصب‌شده و هش فایل‌ها را با آن تطبیق می‌دهد. فقط خواندنی: هیچ داده‌ای از دستگاه شما ارسال نمی‌شود.</string>
+    <string name="catalog_label">کاتالوگ Idol</string>
+    <string name="catalog_stage">کاتالوگ Idol…</string>
 </resources>

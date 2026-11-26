@@ -91,6 +91,7 @@ class ScanViewModel : ViewModel() {
     var unifiedScore = mutableStateOf<Int?>(null); private set
     var vtSummary = mutableStateOf<String?>(null); private set
     var scanStartMs = mutableStateOf(0L); private set
+    var catalog = mutableStateOf<com.alvand.securityscanner.scanner.CatalogData?>(null); private set
     private var appJob: Job? = null
     private var fileJob: Job? = null
     private var uniJob: Job? = null
@@ -111,7 +112,8 @@ class ScanViewModel : ViewModel() {
             scanning.value = true; progress.value = 0f
             scanStartMs.value = System.currentTimeMillis()
             val appCtx = ctx.applicationContext
-            val list = AppScanner(appCtx).scanAll(includeSystem = withSystem) { p ->
+            catalog.value = fetchCatalog(appCtx)
+            val list = AppScanner(appCtx).scanAll(includeSystem = withSystem, catalog = catalog.value) { p ->
                 progress.value = if (p.total == 0) 0f else p.done.toFloat() / p.total
             }
             findings.value = list
@@ -153,8 +155,11 @@ class ScanViewModel : ViewModel() {
             scanStartMs.value = System.currentTimeMillis()
             try {
                 val appCtx = ctx.applicationContext
+                catalog.value = fetchCatalog(appCtx)
                 val treeUri = Uri.parse(treeUriString)
-                val res = com.alvand.securityscanner.scanner.FileScanner.scanTree(appCtx, treeUri) { p ->
+                val res = com.alvand.securityscanner.scanner.FileScanner.scanTree(
+                    appCtx, treeUri, catalog = catalog.value
+                ) { p ->
                     fileProgress.value = if (p.total == 0) 0f else p.done.toFloat() / p.total
                     fileCurrent.value = p.currentName
                 }
@@ -204,11 +209,14 @@ class ScanViewModel : ViewModel() {
             scanStartMs.value = System.currentTimeMillis()
             try {
                 val appCtx = ctx.applicationContext
+                // Stage 0: catalog reputation (read-only public JSON, cached 6h)
+                unifiedStage.value = "catalog"
+                catalog.value = fetchCatalog(appCtx)
                 // Stage 1: apps
                 unifiedStage.value = "apps"
                 scanning.value = true
                 val apps = com.alvand.securityscanner.scanner.AppScanner(appCtx)
-                    .scanAll(includeSystem = withSystem) { p ->
+                    .scanAll(includeSystem = withSystem, catalog = catalog.value) { p ->
                         unifiedProgress.value = 0.5f * (if (p.total == 0) 0f else p.done.toFloat() / p.total)
                     }
                 findings.value = apps
@@ -226,7 +234,7 @@ class ScanViewModel : ViewModel() {
                         unifiedStage.value = "files"
                         fileScanning.value = true
                         val res = com.alvand.securityscanner.scanner.FileScanner.scanTree(
-                            appCtx, Uri.parse(tree)
+                            appCtx, Uri.parse(tree), catalog = catalog.value
                         ) { p ->
                             unifiedProgress.value = 0.5f + 0.5f * (if (p.total == 0) 0f else p.done.toFloat() / p.total)
                             fileProgress.value = if (p.total == 0) 0f else p.done.toFloat() / p.total
@@ -281,6 +289,19 @@ class ScanViewModel : ViewModel() {
                 unifiedScanning.value = false; unifiedProgress.value = 0f; unifiedStage.value = ""
             }
         }
+    }
+
+    /**
+     * Idol Catalog reputation: read-only public JSON, no device data sent.
+     * Honors the CATALOG toggle; cached 6h inside CatalogReputation.
+     */
+    private suspend fun fetchCatalog(appCtx: Context): com.alvand.securityscanner.scanner.CatalogData? {
+        return try {
+            val on = appCtx.dataStore.data
+                .map { it[PrefsKeys.CATALOG] != false } // default ON
+                .firstOrNull() ?: true
+            if (on) com.alvand.securityscanner.scanner.CatalogReputation.fetch() else null
+        } catch (_: Exception) { null }
     }
 
     /**
@@ -370,12 +391,12 @@ fun MainTabs(theme: String, lang: String) {
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         bottomBar = {
             Surface(
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 16.dp,
                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
             ) {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -383,9 +404,13 @@ fun MainTabs(theme: String, lang: String) {
                         selected = tab == 0, icon = Icons.Default.Home,
                         label = stringResource(R.string.dashboard), onClick = { tab = 0 }
                     )
+                    BottomTab(
+                        selected = tab == 1, icon = Icons.Default.Folder,
+                        label = stringResource(R.string.files), onClick = { tab = 1 }
+                    )
                     Box(contentAlignment = Alignment.Center) {
                         FloatingActionButton(
-                            onClick = { tab = 1; vm.scanAll(ctx0) },
+                            onClick = { tab = 2; vm.scanAll(ctx0) },
                             containerColor = com.alvand.securityscanner.ui.AccentBlue,
                             contentColor = Color.White,
                             shape = CircleShape,
@@ -396,8 +421,12 @@ fun MainTabs(theme: String, lang: String) {
                         }
                     }
                     BottomTab(
-                        selected = tab == 2, icon = Icons.Default.History,
-                        label = stringResource(R.string.history), onClick = { tab = 2 }
+                        selected = tab == 3, icon = Icons.Default.History,
+                        label = stringResource(R.string.history), onClick = { tab = 3 }
+                    )
+                    BottomTab(
+                        selected = tab == 4, icon = Icons.Default.Settings,
+                        label = stringResource(R.string.settings), onClick = { tab = 4 }
                     )
                 }
             }
@@ -405,11 +434,12 @@ fun MainTabs(theme: String, lang: String) {
     ) { pad ->
         Box(Modifier.padding(pad)) {
             when (tab) {
-                0 -> HomeScreen(vm, onScan = { tab = 1 }, onSettings = { tab = 3 }, onHistory = { tab = 2 })
-                1 -> ScanScreen(vm, onBack = { tab = 0 })
-                2 -> HistoryList(vm)
-                3 -> SettingsScreen(theme, lang)
-                else -> HomeScreen(vm, onScan = { tab = 1 }, onSettings = { tab = 3 }, onHistory = { tab = 2 })
+                0 -> HomeScreen(vm, onScan = { tab = 2 }, onSettings = { tab = 4 }, onHistory = { tab = 3 })
+                1 -> FilesScreen(vm)
+                2 -> ScanScreen(vm, onBack = { tab = 0 })
+                3 -> HistoryList(vm)
+                4 -> SettingsScreen(theme, lang)
+                else -> HomeScreen(vm, onScan = { tab = 2 }, onSettings = { tab = 4 }, onHistory = { tab = 3 })
             }
         }
     }
@@ -424,7 +454,7 @@ fun BottomTab(
 ) {
     val tint = if (selected) com.alvand.securityscanner.ui.AccentBlue else Color(0xFF9CA3AF)
     Column(
-        Modifier.clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 4.dp),
+        Modifier.clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(26.dp))
@@ -442,7 +472,7 @@ fun HomeScreen(vm: ScanViewModel, onScan: () -> Unit, onSettings: () -> Unit, on
     val notifLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
     ) { }
-    val sched by ctx.dataStore.data.map { it[PrefsKeys.SCHED] == true }.collectAsState(false)
+    val realtime by ctx.dataStore.data.map { it[PrefsKeys.REALTIME] != false }.collectAsState(true)
     val lastScan by ctx.dataStore.data.map { it[PrefsKeys.LAST_SCAN] }.collectAsState(null)
     val notifOn = if (Build.VERSION.SDK_INT >= 33) {
         ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
@@ -558,16 +588,12 @@ fun HomeScreen(vm: ScanViewModel, onScan: () -> Unit, onSettings: () -> Unit, on
                 ProtRow(
                     Icons.Default.VerifiedUser,
                     stringResource(R.string.realtime),
-                    if (sched) stringResource(R.string.scan_on) else stringResource(R.string.scan_off)
+                    if (realtime) stringResource(R.string.scan_on) else stringResource(R.string.scan_off)
                 ) {
                     Switch(
-                        checked = sched,
+                        checked = realtime,
                         onCheckedChange = { on ->
-                            scope.launch {
-                                ctx.dataStore.edit { it[PrefsKeys.SCHED] = on }
-                                if (on) com.alvand.securityscanner.scanner.ScanWorker.schedule(ctx)
-                                else com.alvand.securityscanner.scanner.ScanWorker.cancel(ctx)
-                            }
+                            scope.launch { ctx.dataStore.edit { it[PrefsKeys.REALTIME] = on } }
                         },
                         colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = com.alvand.securityscanner.ui.AccentBlue)
                     )
@@ -607,6 +633,38 @@ fun HomeScreen(vm: ScanViewModel, onScan: () -> Unit, onSettings: () -> Unit, on
                         } catch (_: Exception) { }
                     } }) {
                         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = com.alvand.securityscanner.ui.TextSecondary)
+                    }
+                }
+            }
+        }
+        // Device health (root / ADB / developer options) — only after a scan ran.
+        val health = vm.health.value
+        if (health != null) {
+            item {
+                GlassCard(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.HealthAndSafety, contentDescription = null,
+                            tint = com.alvand.securityscanner.ui.AccentBlue, modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            stringResource(R.string.device_health), fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    val healthLines = buildList {
+                        if (health.isProbablyRooted) add(stringResource(R.string.health_root))
+                        if (health.adbEnabled == true) add(stringResource(R.string.health_adb))
+                        if (health.devOptionsEnabled == true) add(stringResource(R.string.health_dev))
+                    }
+                    if (healthLines.isEmpty()) {
+                        Text(stringResource(R.string.health_ok), fontSize = 13.sp, color = com.alvand.securityscanner.ui.GlowSafe)
+                    } else {
+                        healthLines.forEach {
+                            Text("⚠ $it", fontSize = 13.sp, color = com.alvand.securityscanner.ui.GlowWarn)
+                        }
                     }
                 }
             }
@@ -697,7 +755,13 @@ fun ScoreRing(score: Int?) {
     val label: String
     val sub: String
     when {
-        score == null || s >= 80 -> {
+        // No scan yet: neutral gray, honest "not scanned" — never "safe".
+        score == null -> {
+            ring = Brush.sweepGradient(listOf(Color(0xFFB9C0D8), Color(0xFFD7DCEC), Color(0xFFB9C0D8)))
+            label = stringResource(R.string.not_scanned)
+            sub = stringResource(R.string.not_scanned_sub)
+        }
+        s >= 80 -> {
             ring = Brush.sweepGradient(listOf(com.alvand.securityscanner.ui.RingBlue, com.alvand.securityscanner.ui.RingPink, com.alvand.securityscanner.ui.RingBlue))
             label = stringResource(R.string.safe)
             sub = stringResource(R.string.no_threats)
@@ -718,7 +782,7 @@ fun ScoreRing(score: Int?) {
             val stroke = 14.dp.toPx()
             val padding = 4.dp.toPx()
             drawArc(
-                Color(0xFFE0E4F0), 0f, 360f, false,
+                if (score == null) Color(0xFFBCC3DA) else Color(0xFFE0E4F0), 0f, 360f, false,
                 style = Stroke(stroke, cap = StrokeCap.Round),
                 topLeft = Offset(padding, padding),
                 size = Size(size.width - padding * 2f, size.height - padding * 2f)
@@ -915,7 +979,9 @@ fun ScanScreen(vm: ScanViewModel, onBack: () -> Unit) {
         else -> 0f
     }
     val stage = when {
-        vm.unifiedScanning.value && vm.unifiedStage.value.isNotBlank() -> vm.unifiedStage.value
+        vm.unifiedScanning.value && vm.unifiedStage.value.isNotBlank() ->
+            if (vm.unifiedStage.value == "catalog") stringResource(R.string.catalog_stage)
+            else vm.unifiedStage.value
         vm.fileScanning.value && vm.fileCurrent.value.isNotBlank() -> vm.fileCurrent.value
         else -> ""
     }
@@ -1308,7 +1374,7 @@ fun SettingsScreen(theme: String, lang: String) {
         } else {
             @Suppress("DEPRECATION") ctx.packageManager.getPackageInfo(pkg, 0).versionName
         }
-    } catch (_: Exception) { "1.2.0" }
+    } catch (_: Exception) { "؟" }
     val verCode = try {
         if (Build.VERSION.SDK_INT >= 28) {
             if (Build.VERSION.SDK_INT >= 33) {
@@ -1321,6 +1387,7 @@ fun SettingsScreen(theme: String, lang: String) {
     val cloud by ctx.dataStore.data.map { it[PrefsKeys.CLOUD] == true }.collectAsState(false)
     val vtKey by ctx.dataStore.data.map { it[PrefsKeys.VT_KEY] ?: "" }.collectAsState("")
     val sched by ctx.dataStore.data.map { it[PrefsKeys.SCHED] == true }.collectAsState(false)
+    val catalogOn by ctx.dataStore.data.map { it[PrefsKeys.CATALOG] != false }.collectAsState(true)
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1352,10 +1419,13 @@ fun SettingsScreen(theme: String, lang: String) {
                                 ctx.dataStore.edit { it[PrefsKeys.LANG] = v }
                                 ctx.getSharedPreferences("events", Context.MODE_PRIVATE).edit().putString("ui_lang", v).apply()
                                 if (Build.VERSION.SDK_INT >= 33) {
+                                    // applicationLocales triggers its own recreation;
+                                    // calling recreate() too would double-recreate.
                                     val lm = ctx.getSystemService(android.app.LocaleManager::class.java)
                                     lm?.applicationLocales = if (v == "system") android.os.LocaleList.forLanguageTags("") else android.os.LocaleList.forLanguageTags(v)
+                                } else {
+                                    (ctx as? MainActivity)?.recreate()
                                 }
-                                (ctx as? MainActivity)?.recreate()
                             }
                         },
                         label = { Text(t) },
@@ -1363,6 +1433,18 @@ fun SettingsScreen(theme: String, lang: String) {
                     )
                 }
             }
+        }
+        GlassCard(Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.catalog_title), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
+            Text(stringResource(R.string.catalog_desc), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Spacer(Modifier.height(4.dp))
+            Switch(
+                checked = catalogOn,
+                onCheckedChange = { on ->
+                    scope.launch { ctx.dataStore.edit { it[PrefsKeys.CATALOG] = on } }
+                },
+                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = com.alvand.securityscanner.ui.AccentBlue)
+            )
         }
         GlassCard(Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.scheduled_scan), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
