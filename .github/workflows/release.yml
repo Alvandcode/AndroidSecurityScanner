@@ -23,17 +23,17 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
-
       - uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: "8.7"
 
+      # Runners ship the Android SDK; the old android-actions/setup-android@v3
+      # step broke (it force-installs the removed legacy "tools" package).
       - name: Accept SDK licenses
-        run: yes | sdkmanager --licenses || true
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Install SDK 35
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" || true
+        run: "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
