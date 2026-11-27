@@ -1,4 +1,4 @@
-# AndroidSecurityScanner — Phase 8 (v1.7.1, versionCode 10)
+# AndroidSecurityScanner — Phase 8 (v1.7.2, versionCode 11)
 
 ## Prerequisites
 - Android Studio Hedgehog or later.
@@ -6,6 +6,10 @@
 - Android SDK 35 (`compileSdk/targetSdk 35`, `minSdk 23`).
 - No root required — scanning uses PackageManager + SAF only (no MediaStore query,
   so no storage permissions are requested).
+
+## New in Phase-8.2 (v1.7.2)
+- **Delete-history button** in the History tab with a confirmation dialog
+  (the auto-rotation cap of 50 records already existed; this adds manual control).
 
 ## New in Phase-8.1 (v1.7.1)
 - **Dark theme actually dark now:** cards, chips, score ring and radar follow

@@ -46,6 +46,8 @@
     <string name="never">Never</string>
     <string name="only_threats">Only threats</string>
     <string name="no_history">No scan history yet</string>
+    <string name="clear_history">Delete history</string>
+    <string name="clear_history_confirm">All scan history will be deleted. This cannot be undone.</string>
     <string name="save">Save</string>
     <string name="target_sdk_old_warn">Outdated target SDK — missing modern sandbox protections</string>
     <string name="files">Files</string>

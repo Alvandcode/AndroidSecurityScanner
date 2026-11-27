@@ -29,6 +29,9 @@ interface ScanDao {
 
     @Query("DELETE FROM scans WHERE id NOT IN (SELECT id FROM scans ORDER BY timestamp DESC LIMIT 50)")
     suspend fun trim()
+
+    @Query("DELETE FROM scans")
+    suspend fun clearAll()
 }
 
 @Database(entities = [ScanRecord::class], version = 2, exportSchema = false)

@@ -1341,6 +1341,8 @@ fun FilesScreen(vm: ScanViewModel) {
 @Composable
 fun HistoryList(vm: ScanViewModel) {
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var confirmClear by remember { mutableStateOf(false) }
     val lastScore by ctx.dataStore.data.map { it[PrefsKeys.LAST_SCORE] }.collectAsState(null)
     val lastScan by ctx.dataStore.data.map { it[PrefsKeys.LAST_SCAN] }.collectAsState(null)
     val records by remember(ctx) { com.alvand.securityscanner.data.HistoryDb.get(ctx).dao().recent() }
@@ -1354,7 +1356,31 @@ fun HistoryList(vm: ScanViewModel) {
             GlassCard(Modifier.fillMaxWidth()) {
                 Text("${stringResource(R.string.last_scan)}: ${lastScan ?: stringResource(R.string.never)}", color = com.alvand.securityscanner.ui.TextPrimary())
                 Text("${stringResource(R.string.device_score)}: ${lastScore ?: "--"}", fontSize = 13.sp, color = com.alvand.securityscanner.ui.TextSecondary())
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = { confirmClear = true }, enabled = records.isNotEmpty()) {
+                    Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.clear_history), fontSize = 13.sp)
+                }
             }
+        }
+        if (confirmClear) {
+            AlertDialog(
+                onDismissRequest = { confirmClear = false },
+                title = { Text(stringResource(R.string.clear_history), fontWeight = FontWeight.Bold) },
+                text = { Text(stringResource(R.string.clear_history_confirm)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmClear = false
+                        scope.launch {
+                            try { com.alvand.securityscanner.data.HistoryDb.get(ctx).dao().clearAll() } catch (_: Exception) { }
+                        }
+                    }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.close)) }
+                }
+            )
         }
         if (records.isEmpty()) {
             item { GlassCard(Modifier.fillMaxWidth()) { Text(stringResource(R.string.no_history), color = com.alvand.securityscanner.ui.TextSecondary()) } }

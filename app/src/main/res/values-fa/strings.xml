@@ -46,6 +46,8 @@
     <string name="never">هرگز</string>
     <string name="only_threats">فقط تهدیدها</string>
     <string name="no_history">هنوز تاریخچه‌ای وجود ندارد</string>
+    <string name="clear_history">حذف تاریخچه</string>
+    <string name="clear_history_confirm">کل تاریخچه اسکن حذف می‌شود. این عمل قابل بازگشت نیست.</string>
     <string name="save">ذخیره</string>
     <string name="target_sdk_old_warn">تارگت SDK قدیمی — فاقد محافظت‌های جدید اندروید</string>
     <string name="files">فایل‌ها</string>
