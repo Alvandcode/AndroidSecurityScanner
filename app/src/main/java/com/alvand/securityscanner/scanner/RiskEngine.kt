@@ -203,10 +203,12 @@ object RiskEngine {
                 Triple((score - 10).coerceIn(0, 100), v, out)
             }
             asset.status == CatalogStatus.A_NO_DETECTION &&
-                    (appStatus == CatalogStatus.SAFE || appStatus == CatalogStatus.LOW_RISK) -> {
+                    (appStatus == CatalogStatus.SAFE || appStatus == CatalogStatus.LOW_RISK) &&
+                    verdict == FileVerdict.REVIEW -> {
+                // Only rescue name-based suspicion (REVIEW); a locally DANGEROUS
+                // file keeps its verdict — known-good hash never overrides it.
                 out.add("CATALOG_KNOWN_GOOD")
-                val v = if (verdict == FileVerdict.REVIEW) FileVerdict.SAFE else verdict
-                Triple(maxOf(score, 90), v, out)
+                Triple(maxOf(score, 90), FileVerdict.SAFE, out)
             }
             else -> Triple(score, verdict, reasons)
         }
