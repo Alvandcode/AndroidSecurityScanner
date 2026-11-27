@@ -193,16 +193,17 @@ object FileScanner {
             else -> FileVerdict.DANGEROUS
         }
         // --- Idol Catalog asset evidence (trusted over name heuristics) ---
+        var finalReasons: List<String> = reasons
         if (sha != null) {
             val asset = catalog?.assetFor(sha)
             if (asset != null) {
-                val merged = RiskEngine.applyCatalogToFile(score, verdict, reasons, asset, asset.appStatus)
-                score = merged.first; verdict = merged.second; reasons = merged.third
+                val merged = RiskEngine.applyCatalogToFile(score, verdict, finalReasons, asset, asset.appStatus)
+                score = merged.first; verdict = merged.second; finalReasons = merged.third
             }
         }
         return FileFinding(
             displayName = name, uriString = uri.toString(), mime = mime,
-            size = size, sha256 = sha, verdict = verdict, reasons = reasons,
+            size = size, sha256 = sha, verdict = verdict, reasons = finalReasons,
             isApk = isApk, apkPackage = apkPkg, score = score
         )
     }
