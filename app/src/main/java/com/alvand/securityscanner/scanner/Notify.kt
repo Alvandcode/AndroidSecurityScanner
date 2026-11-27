@@ -41,8 +41,10 @@ fun notifyScanFinished(ctx: Context, score: Int, threats: Int) {
     val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
     val title = ctx.getString(R.string.device_score) + ": $score/100"
     val text = ctx.getString(R.string.threats) + ": $threats"
+    // Time-bucketed ID: two scan-finish alerts never overwrite each other.
+    val notifId = 1001 + (((System.currentTimeMillis() / 60000L) and 0x7FFFFFFFL) % 1000).toInt()
     nm.notify(
-        1001,
+        notifId,
         NotificationCompat.Builder(ctx, CH)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentTitle(title).setContentText(text)

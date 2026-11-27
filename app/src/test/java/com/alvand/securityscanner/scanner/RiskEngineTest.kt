@@ -295,4 +295,49 @@ class RiskEngineTest {
         assertEquals(0, data.apps.size)
         assertEquals(0, data.assets.size)
     }
+
+    @Test
+    fun `parse reads yara-shaped detections (rule + description)`() {
+        val json = """
+        {
+          "results": [
+            {"id": "com.a", "overall_status": "WARNING",
+             "detections": [
+               {"tool": "yara", "rule": "Suspicious_Socket", "severity": "high",
+                "description": "raw socket usage"}
+             ]}
+          ]
+        }
+        """.trimIndent()
+        val app = CatalogReputation.parse(json).appFor("com.a")
+        assertEquals("Suspicious_Socket — raw socket usage", app?.detections?.first())
+    }
+
+    @Test
+    fun `parse reads clamav signature detections`() {
+        val json = """
+        {
+          "results": [
+            {"id": "com.a", "overall_status": "DANGEROUS",
+             "detections": [{"tool": "clamav", "signature": "Trojan.Android.Foo"}]}
+          ]
+        }
+        """.trimIndent()
+        val app = CatalogReputation.parse(json).appFor("com.a")
+        assertEquals("Trojan.Android.Foo", app?.detections?.first())
+    }
+
+    @Test
+    fun `parse skips empty detection labels`() {
+        val json = """
+        {
+          "results": [
+            {"id": "com.a", "overall_status": "WARNING",
+             "detections": [{"tool": "yara", "severity": "low"}, "plain hit"]}
+          ]
+        }
+        """.trimIndent()
+        val app = CatalogReputation.parse(json).appFor("com.a")
+        assertEquals(listOf("plain hit"), app?.detections)
+    }
 }

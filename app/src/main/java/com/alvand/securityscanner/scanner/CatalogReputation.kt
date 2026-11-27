@@ -73,6 +73,9 @@ object CatalogReputation {
     const val RESULTS_URL =
         "https://raw.githubusercontent.com/Alvandcode/idol-store-catalog/main/security-results.json"
     private const val HTTP_TIMEOUT = 15_000
+    // Integrity guards: body size cap + max report age.
+    private const val MAX_BODY_BYTES = 8L * 1024 * 1024
+    private const val STALE_MS = 60L * 24 * 60 * 60 * 1000   // 60 days
 
     // In-memory TTL cache: avoid re-downloading on every scan.
     private const val TTL_MS = 6L * 60 * 60 * 1000   // 6 hours
@@ -114,10 +117,41 @@ object CatalogReputation {
                 setRequestProperty("Accept", "application/json")
             }
             if (c.responseCode != 200) return null
-            val body = c.inputStream.bufferedReader().readText()
-            parse(body)
+            // Hard size cap: a tampered/huge file must never blow up memory.
+            val body = c.inputStream.use { ins ->
+                val buf = StringBuilder()
+                val chunk = ByteArray(8192)
+                var total = 0L
+                while (true) {
+                    val n = ins.read(chunk)
+                    if (n <= 0) break
+                    total += n
+                    if (total > MAX_BODY_BYTES) return null
+                    buf.append(String(chunk, 0, n, Charsets.UTF_8))
+                }
+                buf.toString()
+            }
+            val data = parse(body)
+            // Staleness guard: a report older than 60 days must never feed the
+            // app's verdicts (the catalog CI is supposed to run continuously).
+            if (!isRecentEnough(data.generatedAt)) return null
+            data
         } catch (_: Exception) {
             null
+        }
+    }
+
+    /** Parses the catalog timestamp; null = unparsable (no recency guarantee). */
+    private fun isRecentEnough(generatedAt: String): Boolean {
+        if (generatedAt.isBlank()) return false
+        return try {
+            val fmt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.US)
+            fmt.isLenient = false
+            val parsed = fmt.parse(generatedAt) ?: return false
+            val ageMs = System.currentTimeMillis() - parsed.time
+            ageMs in 0..STALE_MS
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -136,18 +170,35 @@ object CatalogReputation {
             r.optJSONArray("detections")?.let { arr ->
                 for (j in 0 until arr.length()) {
                     val d = arr.optJSONObject(j)
-                    detections.add(
-                        d?.optString("signature", null) ?: (arr.optString(j).take(120))
-                    )
+                    // Catalog schema: ClamAV hits use "signature", YARA hits use
+                    // "rule"/"description". Fall back to a plain string element.
+                    val label = when {
+                        d == null -> arr.optString(j)
+                        else -> {
+                            val sig = d.optString("signature", "")
+                            if (sig.isNotBlank()) sig
+                            else {
+                                val rule = d.optString("rule", "")
+                                val desc = d.optString("description", "")
+                                when {
+                                    rule.isNotBlank() && desc.isNotBlank() -> "$rule — $desc"
+                                    rule.isNotBlank() -> rule
+                                    else -> desc
+                                }
+                            }
+                        }
+                    }
+                    if (label.isNotBlank()) detections.add(label.take(120))
                 }
             }
             val warnings = mutableListOf<String>()
             r.optJSONArray("warnings")?.let { arr ->
                 for (j in 0 until arr.length()) {
                     val w = arr.optJSONObject(j)
-                    warnings.add(
-                        w?.optString("message", null) ?: (arr.optString(j).take(120))
-                    )
+                    val label = w?.optString("message", "")?.takeIf { it.isNotBlank() }
+                        ?: w?.optString("description", "")?.takeIf { it.isNotBlank() }
+                        ?: arr.optString(j)
+                    if (label.isNotBlank()) warnings.add(label.take(120))
                 }
             }
             apps[id.lowercase()] = CatalogApp(

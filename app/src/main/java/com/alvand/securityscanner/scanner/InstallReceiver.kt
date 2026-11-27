@@ -43,6 +43,8 @@ class InstallReceiver : BroadcastReceiver() {
                 val pkg = intent.data?.schemeSpecificPart ?: return
                 if (pkg == context.packageName) return
                 if (intent.action == Intent.ACTION_PACKAGE_REPLACED) return // updates are less urgent
+                // Some OEM ROMs fire PACKAGE_ADDED with EXTRA_REPLACING=true on updates.
+                if (intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return
                 val wm = WorkManager.getInstance(context)
                 wm.enqueueUniqueWork(
                     "install_scan_$pkg",

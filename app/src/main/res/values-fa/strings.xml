@@ -4,7 +4,6 @@
     <string name="scan">اسکن</string>
     <string name="history">تاریخچه</string>
     <string name="settings">تنظیمات</string>
-    <string name="scan_now">اسکن کن</string>
     <string name="scanning">در حال اسکن…</string>
     <string name="device_score">امتیاز دستگاه</string>
     <string name="apps_scanned">برنامه‌های بررسی‌شده</string>
@@ -17,7 +16,6 @@
     <string name="no_threats">تهدیدی پیدا نشد</string>
     <string name="details">جزئیات</string>
     <string name="uninstall">حذف نصب</string>
-    <string name="app_info">اطلاعات برنامه</string>
     <string name="theme">پوسته</string>
     <string name="theme_system">سیستم</string>
     <string name="theme_light">روشن</string>
@@ -46,11 +44,7 @@
     <string name="copy">کپی</string>
     <string name="last_scan">آخرین اسکن</string>
     <string name="never">هرگز</string>
-    <string name="replace_icon_note">با لوگوی شما جایگزین می‌شود</string>
-    <string name="show_system_apps">شامل برنامه‌های سیستمی</string>
-    <string name="search_apps">جستجوی برنامه…</string>
     <string name="only_threats">فقط تهدیدها</string>
-    <string name="open_security_settings">باز کردن تنظیمات امنیتی</string>
     <string name="no_history">هنوز تاریخچه‌ای وجود ندارد</string>
     <string name="save">ذخیره</string>
     <string name="target_sdk_old_warn">تارگت SDK قدیمی — فاقد محافظت‌های جدید اندروید</string>
@@ -70,7 +64,6 @@
     <string name="open">باز کردن</string>
     <string name="deleted">حذف شد</string>
     <string name="delete_failed">حذف ناموفق (دسترسی نیست)</string>
-    <string name="truncated">در ۲۰۰۰ فایل متوقف شد — پوشه کوچک‌تری انتخاب کن</string>
     <string name="reasons">دلایل</string>
     <string name="scan_all">اسکن همه</string>
     <string name="scan_all_needs_folder">راهنما: در تب فایل‌ها پوشه انتخاب کن تا اسکن همه فایل‌ها را هم شامل شود</string>

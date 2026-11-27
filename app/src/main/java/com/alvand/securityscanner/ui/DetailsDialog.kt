@@ -47,7 +47,7 @@ fun DetailsDialog(f: AppFinding, onClose: () -> Unit) {
                         "DANGEROUS" -> com.alvand.securityscanner.ui.GlowDanger
                         "WARNING" -> com.alvand.securityscanner.ui.GlowWarn
                         "SAFE", "LOW_RISK" -> com.alvand.securityscanner.ui.GlowSafe
-                        else -> com.alvand.securityscanner.ui.TextSecondary
+                        else -> com.alvand.securityscanner.ui.TextSecondary()
                     }
                     Text(
                         "${stringResource(R.string.catalog_label)}: ${f.catalogStatus}",

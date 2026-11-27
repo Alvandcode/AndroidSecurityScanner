@@ -45,7 +45,10 @@ fun GlassCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.()
     }
     Column(
         modifier = modifier
-            .shadow(if (light) 6.dp else 8.dp, shape, clip = false, ambientColor = Color(0xFFD0D5E8))
+            .shadow(
+                if (light) 6.dp else 8.dp, shape, clip = false,
+                ambientColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f)
+            )
             .clip(shape)
             .background(body)
             .border(1.dp, edge, shape)

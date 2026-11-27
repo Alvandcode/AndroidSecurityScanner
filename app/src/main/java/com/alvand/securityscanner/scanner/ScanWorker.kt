@@ -14,7 +14,13 @@ import java.util.concurrent.TimeUnit
 class ScanWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, p) {
     override suspend fun doWork(): Result {
         return try {
-            val findings = AppScanner(applicationContext).scanAll(includeSystem = false)
+            // Catalog evidence (read-only public JSON, cached 6h) so the nightly
+            // scan sees the same verdicts as a manual scan.
+            val catalogOn = applicationContext.dataStore.data
+                .map { it[PrefsKeys.CATALOG] != false }
+                .firstOrNull() ?: true
+            val catalog = if (catalogOn) CatalogReputation.fetch() else null
+            val findings = AppScanner(applicationContext).scanAll(includeSystem = false, catalog = catalog)
             val score = RiskEngine.deviceScore(findings)
             val threats = findings.count { it.verdict == Verdict.DANGEROUS }
             val top = findings.filter { it.verdict != Verdict.SAFE }.take(15)

@@ -86,6 +86,7 @@ object FileScanner {
         val queue: ArrayDeque<Pair<DocumentFile, Int>> = ArrayDeque()
         queue.add(root to 0)
         val flat: ArrayList<DocumentFile> = ArrayList()
+        var depthSkipped = false
 
         while (queue.isNotEmpty() && flat.size < MAX_FILES) {
             if (!coroutineContext.isActive) break
@@ -96,8 +97,10 @@ object FileScanner {
             for (c in children) {
                 if (flat.size + queue.size >= MAX_FILES) { truncated = true; break }
                 try {
-                    if (c.isDirectory && depth < MAX_DEPTH) {
-                        queue.add(c to depth + 1)
+                    if (c.isDirectory) {
+                        if (depth < MAX_DEPTH) queue.add(c to depth + 1)
+                        // Honest reporting: deeper trees are skipped, never silent.
+                        else depthSkipped = true
                     } else if (c.isFile) {
                         flat.add(c)
                     }
@@ -106,6 +109,7 @@ object FileScanner {
             if (truncated) break
         }
         if (flat.size >= MAX_FILES) truncated = true
+        if (depthSkipped) truncated = true
 
         for ((i, doc) in flat.withIndex()) {
             ensureActive() // Stop button cancels promptly (throws CancellationException)

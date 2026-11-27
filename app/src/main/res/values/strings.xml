@@ -4,7 +4,6 @@
     <string name="scan">Scan</string>
     <string name="history">History</string>
     <string name="settings">Settings</string>
-    <string name="scan_now">Scan now</string>
     <string name="scanning">Scanning…</string>
     <string name="device_score">Device score</string>
     <string name="apps_scanned">Apps scanned</string>
@@ -17,7 +16,6 @@
     <string name="no_threats">No threats found</string>
     <string name="details">Details</string>
     <string name="uninstall">Uninstall</string>
-    <string name="app_info">App info</string>
     <string name="theme">Theme</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
@@ -46,11 +44,7 @@
     <string name="copy">Copy</string>
     <string name="last_scan">Last scan</string>
     <string name="never">Never</string>
-    <string name="replace_icon_note">Replace with your logo</string>
-    <string name="show_system_apps">Include system apps</string>
-    <string name="search_apps">Search apps…</string>
     <string name="only_threats">Only threats</string>
-    <string name="open_security_settings">Open security settings</string>
     <string name="no_history">No scan history yet</string>
     <string name="save">Save</string>
     <string name="target_sdk_old_warn">Outdated target SDK — missing modern sandbox protections</string>
@@ -70,7 +64,6 @@
     <string name="open">Open</string>
     <string name="deleted">Deleted</string>
     <string name="delete_failed">Delete failed (no access)</string>
-    <string name="truncated">Stopped at 2000 files — narrow the folder for full coverage</string>
     <string name="reasons">Reasons</string>
     <string name="scan_all">Scan all</string>
     <string name="scan_all_needs_folder">Tip: pick a folder in Files tab so Scan All covers files too</string>

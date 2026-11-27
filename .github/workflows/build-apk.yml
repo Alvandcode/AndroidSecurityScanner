@@ -32,6 +32,11 @@ jobs:
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
 
+      # Exercise the release path (R8/ProGuard) so shrinker regressions
+      # surface in CI instead of at store-publish time. Unsigned output.
+      - name: Build release APK (unsigned, exercises R8)
+        run: gradle :app:assembleRelease --stacktrace
+
       - name: Run unit tests (risk model + catalog parsing)
         run: gradle :app:testDebugUnitTest --stacktrace
 

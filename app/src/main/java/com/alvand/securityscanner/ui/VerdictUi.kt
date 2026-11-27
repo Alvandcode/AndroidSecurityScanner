@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,18 @@ fun GlowCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(22.dp)
+    // Dark-mode fix: card body follows the scheme instead of hardcoded white.
+    val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val body: Brush = if (light) {
+        Brush.verticalGradient(listOf(Color.White, Color(0xFFFBFCFF)))
+    } else {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.16f),
+                Color.White.copy(alpha = 0.05f)
+            )
+        )
+    }
     val alpha: Float = if (pulse) {
         val t = rememberInfiniteTransition(label = "glow")
         t.animateFloat(
@@ -76,14 +89,7 @@ fun GlowCard(
                 spotColor = glow.copy(alpha = 0.20f)
             )
             .clip(shape)
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color.White,
-                        Color(0xFFFBFCFF)
-                    )
-                )
-            )
+            .background(body)
             .border(1.2.dp, edge, shape)
             .padding(14.dp),
         content = content
@@ -100,7 +106,7 @@ fun CategoryHeader(text: String, dot: Color, modifier: Modifier = Modifier) {
         Spacer(Modifier.width(8.dp))
         Text(
             text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-            color = TextPrimary
+            color = TextPrimary()
         )
     }
 }

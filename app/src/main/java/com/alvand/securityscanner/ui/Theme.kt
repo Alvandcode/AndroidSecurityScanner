@@ -31,15 +31,24 @@ val GlowDanger = Color(0xFFFF5252)
 val GlowWarn = Color(0xFFFFC107)
 val GlowSafe = Color(0xFF4CAF50)
 
-// Design accent colors
+// Design accent colors (theme-independent).
 val AccentBlue = Color(0xFF6B7CFF)
 val AccentPurple = Color(0xFF9B8AFB)
 val AccentPink = Color(0xFFE08BD4)
 val RingBlue = Color(0xFF7B8CFF)
 val RingPink = Color(0xFFE08BD4)
-val TextPrimary = Color(0xFF1A1D2E)
-val TextSecondary = Color(0xFF6B7280)
 val CardShadow = Color(0xFFD0D5E8)
+
+/**
+ * Theme-aware text colors. These were hardcoded light-scheme colors, which
+ * left dark text on dark glass cards in dark mode. They now follow the
+ * active MaterialTheme color scheme (call as functions inside composables).
+ */
+@Composable
+fun TextPrimary(): Color = MaterialTheme.colorScheme.onBackground
+
+@Composable
+fun TextSecondary(): Color = MaterialTheme.colorScheme.onSurfaceVariant
 
 @Composable
 fun AppTheme(theme: String, content: @Composable () -> Unit) {

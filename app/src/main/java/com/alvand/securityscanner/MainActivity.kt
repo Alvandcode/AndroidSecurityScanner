@@ -110,6 +110,8 @@ class ScanViewModel : ViewModel() {
         appJob?.cancel()
         appJob = viewModelScope.launch {
             scanning.value = true; progress.value = 0f
+            // Fresh scan: clear any stale unified score from a previous Scan All.
+            unifiedScore.value = null
             scanStartMs.value = System.currentTimeMillis()
             val appCtx = ctx.applicationContext
             catalog.value = fetchCatalog(appCtx)
@@ -152,6 +154,7 @@ class ScanViewModel : ViewModel() {
         fileJob?.cancel()
         fileJob = viewModelScope.launch {
             fileScanning.value = true; fileProgress.value = 0f; fileCurrent.value = ""
+            unifiedScore.value = null
             scanStartMs.value = System.currentTimeMillis()
             try {
                 val appCtx = ctx.applicationContext
@@ -247,7 +250,10 @@ class ScanViewModel : ViewModel() {
                         hasFiles = res.files.isNotEmpty()
                         fileScanning.value = false
                         // Stage 3 (opt-in): VT check on top dangerous files only (quota-safe).
-                        try { vtSummary.value = vtCheckTopFiles(appCtx) } catch (_: Exception) { vtSummary.value = null }
+                        try {
+                            unifiedStage.value = "vt"
+                            vtSummary.value = vtCheckTopFiles(appCtx)
+                        } catch (_: Exception) { vtSummary.value = null }
                     } catch (_: Exception) { fileScanning.value = false }
                 }
                 unifiedProgress.value = 1f
@@ -452,7 +458,7 @@ fun BottomTab(
     label: String,
     onClick: () -> Unit
 ) {
-    val tint = if (selected) com.alvand.securityscanner.ui.AccentBlue else Color(0xFF9CA3AF)
+    val tint = if (selected) com.alvand.securityscanner.ui.AccentBlue else MaterialTheme.colorScheme.onSurfaceVariant
     Column(
         Modifier.clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -487,7 +493,7 @@ fun HomeScreen(vm: ScanViewModel, onScan: () -> Unit, onSettings: () -> Unit, on
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onSettings) {
-                    Icon(Icons.Default.Menu, contentDescription = null, tint = com.alvand.securityscanner.ui.TextPrimary, modifier = Modifier.size(26.dp))
+                    Icon(Icons.Default.Menu, contentDescription = null, tint = com.alvand.securityscanner.ui.TextPrimary(), modifier = Modifier.size(26.dp))
                 }
                 IconButton(onClick = onHistory) {
                     Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = com.alvand.securityscanner.ui.AccentBlue, modifier = Modifier.size(26.dp))
@@ -495,8 +501,8 @@ fun HomeScreen(vm: ScanViewModel, onScan: () -> Unit, onSettings: () -> Unit, on
             }
         }
         item {
-            Text(stringResource(R.string.app_name), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = com.alvand.securityscanner.ui.TextPrimary)
-            Text(stringResource(R.string.app_tagline), fontSize = 14.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Text(stringResource(R.string.app_name), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = com.alvand.securityscanner.ui.TextPrimary())
+            Text(stringResource(R.string.app_tagline), fontSize = 14.sp, color = com.alvand.securityscanner.ui.TextSecondary())
         }
         item {
             val shown = vm.unifiedScore.value ?: vm.deviceScore.value
@@ -506,12 +512,12 @@ fun HomeScreen(vm: ScanViewModel, onScan: () -> Unit, onSettings: () -> Unit, on
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.AccessTime, contentDescription = null,
-                        modifier = Modifier.size(14.dp), tint = com.alvand.securityscanner.ui.TextSecondary
+                        modifier = Modifier.size(14.dp), tint = com.alvand.securityscanner.ui.TextSecondary()
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
                         "${stringResource(R.string.last_scan)}: ${lastScan ?: stringResource(R.string.never)}",
-                        fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary
+                        fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary()
                     )
                 }
             }
@@ -533,10 +539,10 @@ fun HomeScreen(vm: ScanViewModel, onScan: () -> Unit, onSettings: () -> Unit, on
                     }
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.quick_scan), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = com.alvand.securityscanner.ui.TextPrimary)
+                        Text(stringResource(R.string.quick_scan), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = com.alvand.securityscanner.ui.TextPrimary())
                         Text(
                             stringResource(R.string.quick_desc), fontSize = 12.sp,
-                            color = com.alvand.securityscanner.ui.TextSecondary
+                            color = com.alvand.securityscanner.ui.TextSecondary()
                         )
                     }
                     Surface(
@@ -580,7 +586,7 @@ fun HomeScreen(vm: ScanViewModel, onScan: () -> Unit, onSettings: () -> Unit, on
         item {
             Text(
                 stringResource(R.string.protection), fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(start = 4.dp), color = com.alvand.securityscanner.ui.TextPrimary
+                modifier = Modifier.padding(start = 4.dp), color = com.alvand.securityscanner.ui.TextPrimary()
             )
         }
         item {
@@ -603,13 +609,13 @@ fun HomeScreen(vm: ScanViewModel, onScan: () -> Unit, onSettings: () -> Unit, on
                     IconButton(onClick = {
                         try { ctx.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS)) } catch (_: Exception) { }
                     }) {
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = com.alvand.securityscanner.ui.TextSecondary)
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = com.alvand.securityscanner.ui.TextSecondary())
                     }
                 }
                 HorizontalDivider(Modifier.padding(vertical = 6.dp), color = com.alvand.securityscanner.ui.AccentBlue.copy(alpha = 0.08f))
                 ProtRow(Icons.Default.Storage, stringResource(R.string.database), stringResource(R.string.db_desc)) {
                     IconButton(onClick = onSettings) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, tint = com.alvand.securityscanner.ui.TextSecondary)
+                        Icon(Icons.Default.Refresh, contentDescription = null, tint = com.alvand.securityscanner.ui.TextSecondary())
                     }
                 }
                 HorizontalDivider(Modifier.padding(vertical = 6.dp), color = com.alvand.securityscanner.ui.AccentBlue.copy(alpha = 0.08f))
@@ -632,7 +638,7 @@ fun HomeScreen(vm: ScanViewModel, onScan: () -> Unit, onSettings: () -> Unit, on
                             }
                         } catch (_: Exception) { }
                     } }) {
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = com.alvand.securityscanner.ui.TextSecondary)
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = com.alvand.securityscanner.ui.TextSecondary())
                     }
                 }
             }
@@ -650,7 +656,7 @@ fun HomeScreen(vm: ScanViewModel, onScan: () -> Unit, onSettings: () -> Unit, on
                         Spacer(Modifier.width(10.dp))
                         Text(
                             stringResource(R.string.device_health), fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary
+                            fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary()
                         )
                     }
                     Spacer(Modifier.height(6.dp))
@@ -723,12 +729,12 @@ fun AppRow(
             com.alvand.securityscanner.ui.AppIcon(f.packageName, Modifier.size(44.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(f.appName, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = com.alvand.securityscanner.ui.TextPrimary)
-                Text(f.packageName, fontSize = 11.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+                Text(f.appName, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = com.alvand.securityscanner.ui.TextPrimary())
+                Text(f.packageName, fontSize = 11.sp, color = com.alvand.securityscanner.ui.TextSecondary())
                 Text("${f.score}/100 • " + verdictText(f.verdict) + (if (f.unknownSource) " • " + stringResource(R.string.unknown_source) else ""),
-                    fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+                    fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
                 if (f.riskyPermissions.isNotEmpty())
-                    Text("${stringResource(R.string.risky_permissions)}: " + f.riskyPermissions.joinToString { it.name }, fontSize = 11.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+                    Text("${stringResource(R.string.risky_permissions)}: " + f.riskyPermissions.joinToString { it.name }, fontSize = 11.sp, color = com.alvand.securityscanner.ui.TextSecondary())
             }
             Column {
                 Surface(
@@ -757,7 +763,10 @@ fun ScoreRing(score: Int?) {
     when {
         // No scan yet: neutral gray, honest "not scanned" — never "safe".
         score == null -> {
-            ring = Brush.sweepGradient(listOf(Color(0xFFB9C0D8), Color(0xFFD7DCEC), Color(0xFFB9C0D8)))
+            ring = Brush.sweepGradient(listOf(
+                MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f),
+                MaterialTheme.colorScheme.onBackground.copy(alpha = 0.18f),
+                MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f)))
             label = stringResource(R.string.not_scanned)
             sub = stringResource(R.string.not_scanned_sub)
         }
@@ -782,7 +791,7 @@ fun ScoreRing(score: Int?) {
             val stroke = 14.dp.toPx()
             val padding = 4.dp.toPx()
             drawArc(
-                if (score == null) Color(0xFFBCC3DA) else Color(0xFFE0E4F0), 0f, 360f, false,
+                MaterialTheme.colorScheme.onBackground.copy(alpha = if (score == null) 0.30f else 0.15f), 0f, 360f, false,
                 style = Stroke(stroke, cap = StrokeCap.Round),
                 topLeft = Offset(padding, padding),
                 size = Size(size.width - padding * 2f, size.height - padding * 2f)
@@ -795,7 +804,7 @@ fun ScoreRing(score: Int?) {
             )
             val inset = 32.dp.toPx()
             drawArc(
-                Color(0xFFBCC3DA), 0f, 360f, false,
+                MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f), 0f, 360f, false,
                 style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 6f), 0f)),
                 alpha = 0.4f,
                 topLeft = Offset(inset, inset),
@@ -813,11 +822,11 @@ fun ScoreRing(score: Int?) {
                 }
             }
             Spacer(Modifier.height(4.dp))
-            Text(label, fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary, fontWeight = FontWeight.Medium)
+            Text(label, fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary(), fontWeight = FontWeight.Medium)
             Text(
                 if (score == null) "--%" else "$s%",
                 fontSize = 42.sp, fontWeight = FontWeight.Bold,
-                color = com.alvand.securityscanner.ui.TextPrimary
+                color = com.alvand.securityscanner.ui.TextPrimary()
             )
             Text(sub, fontSize = 12.sp, color = com.alvand.securityscanner.ui.AccentBlue, fontWeight = FontWeight.Medium)
         }
@@ -828,7 +837,7 @@ fun ScoreRing(score: Int?) {
 fun MiniScanCard(mod: Modifier, icon: ImageVector, title: String, desc: String, onClick: () -> Unit) {
     Surface(
         modifier = mod.clickable(onClick = onClick),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(20.dp),
         shadowElevation = 4.dp
     ) {
@@ -846,8 +855,8 @@ fun MiniScanCard(mod: Modifier, icon: ImageVector, title: String, desc: String, 
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
-            Text(desc, fontSize = 10.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary())
+            Text(desc, fontSize = 10.sp, color = com.alvand.securityscanner.ui.TextSecondary())
         }
     }
 }
@@ -858,8 +867,8 @@ fun ProtRow(icon: ImageVector, title: String, sub: String, action: @Composable (
         Icon(icon, contentDescription = null, tint = com.alvand.securityscanner.ui.AccentBlue, modifier = Modifier.size(24.dp))
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
-            Text(sub, fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary())
+            Text(sub, fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
         }
         action()
     }
@@ -883,7 +892,7 @@ fun Radar(active: Boolean) {
             val cy = size.height / 2f
             val r = minOf(cx, cy)
             for (f in listOf(0.34f, 0.56f, 0.78f, 1f)) {
-                drawCircle(Color(0xFFD0D5E8), r * f, style = Stroke(1.5.dp.toPx()), alpha = 0.6f)
+                drawCircle(MaterialTheme.colorScheme.onBackground, r * f, style = Stroke(1.5.dp.toPx()), alpha = 0.35f)
             }
             if (active) {
                 rotate(sweep) {
@@ -906,7 +915,7 @@ fun Radar(active: Boolean) {
         OrbitChip(Modifier.align(Alignment.CenterStart).offset(x = (-14).dp), Icons.Default.Lock)
         OrbitChip(Modifier.align(Alignment.BottomCenter).offset(y = 14.dp), Icons.Default.Description)
         Surface(
-            color = Color.White, shape = CircleShape,
+            color = MaterialTheme.colorScheme.surface, shape = CircleShape,
             shadowElevation = 8.dp, modifier = Modifier.size(110.dp)
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -922,7 +931,7 @@ fun Radar(active: Boolean) {
 
 @Composable
 fun OrbitChip(mod: Modifier, icon: ImageVector) {
-    Surface(color = Color.White, shape = CircleShape, shadowElevation = 4.dp, modifier = mod.size(40.dp)) {
+    Surface(color = MaterialTheme.colorScheme.surface, shape = CircleShape, shadowElevation = 4.dp, modifier = mod.size(40.dp)) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Icon(icon, contentDescription = null, tint = com.alvand.securityscanner.ui.AccentBlue, modifier = Modifier.size(20.dp))
         }
@@ -932,23 +941,23 @@ fun OrbitChip(mod: Modifier, icon: ImageVector) {
 @Composable
 fun ScanStat(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = com.alvand.securityscanner.ui.TextPrimary)
-        Text(label, fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+        Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = com.alvand.securityscanner.ui.TextPrimary())
+        Text(label, fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
     }
 }
 
 @Composable
 fun EngineRow(icon: ImageVector, title: String, count: String, active: Boolean) {
     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = com.alvand.securityscanner.ui.TextSecondary, modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = null, tint = com.alvand.securityscanner.ui.TextSecondary(), modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(10.dp))
-        Text(title, fontSize = 14.sp, modifier = Modifier.weight(1f), color = com.alvand.securityscanner.ui.TextPrimary)
+        Text(title, fontSize = 14.sp, modifier = Modifier.weight(1f), color = com.alvand.securityscanner.ui.TextPrimary())
         if (active) {
-            Text(stringResource(R.string.checking), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Text(stringResource(R.string.checking), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
             Spacer(Modifier.width(6.dp))
             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = com.alvand.securityscanner.ui.AccentBlue)
         } else {
-            Text(count, fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Text(count, fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
         }
     }
 }
@@ -981,6 +990,7 @@ fun ScanScreen(vm: ScanViewModel, onBack: () -> Unit) {
     val stage = when {
         vm.unifiedScanning.value && vm.unifiedStage.value.isNotBlank() ->
             if (vm.unifiedStage.value == "catalog") stringResource(R.string.catalog_stage)
+            else if (vm.unifiedStage.value == "vt") stringResource(R.string.vt_stage)
             else vm.unifiedStage.value
         vm.fileScanning.value && vm.fileCurrent.value.isNotBlank() -> vm.fileCurrent.value
         else -> ""
@@ -993,11 +1003,11 @@ fun ScanScreen(vm: ScanViewModel, onBack: () -> Unit) {
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = null, tint = com.alvand.securityscanner.ui.TextPrimary, modifier = Modifier.size(26.dp))
+                    Icon(Icons.Default.ArrowBack, contentDescription = null, tint = com.alvand.securityscanner.ui.TextPrimary(), modifier = Modifier.size(26.dp))
                 }
-                Text(stringResource(R.string.full_scan), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
+                Text(stringResource(R.string.full_scan), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary())
                 IconButton(onClick = { }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = null, tint = com.alvand.securityscanner.ui.TextSecondary, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.MoreVert, contentDescription = null, tint = com.alvand.securityscanner.ui.TextSecondary(), modifier = Modifier.size(24.dp))
                 }
             }
         }
@@ -1007,13 +1017,13 @@ fun ScanScreen(vm: ScanViewModel, onBack: () -> Unit) {
                 if (active) stringResource(R.string.scanning)
                 else if (threats > 0) "${stringResource(R.string.scan_complete)} — $threats ${stringResource(R.string.threats)}"
                 else stringResource(R.string.no_threats),
-                fontSize = 20.sp, fontWeight = FontWeight.Bold, color = com.alvand.securityscanner.ui.TextPrimary
+                fontSize = 20.sp, fontWeight = FontWeight.Bold, color = com.alvand.securityscanner.ui.TextPrimary()
             )
             if (stage.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
                 Text(stage.take(48), fontSize = 12.sp, color = com.alvand.securityscanner.ui.AccentBlue)
             }
-            Text("$scanned ${stringResource(R.string.scanned_label)}", fontSize = 13.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Text("$scanned ${stringResource(R.string.scanned_label)}", fontSize = 13.sp, color = com.alvand.securityscanner.ui.TextSecondary())
         }
         item {
             GlassCard(Modifier.fillMaxWidth()) {
@@ -1037,7 +1047,7 @@ fun ScanScreen(vm: ScanViewModel, onBack: () -> Unit) {
         }
         item {
             GlassCard(Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.scan_engine), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
+                Text(stringResource(R.string.scan_engine), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary())
                 Spacer(Modifier.height(10.dp))
                 EngineRow(Icons.Default.BugReport, stringResource(R.string.malware), "$threats", active)
                 HorizontalDivider(Modifier.padding(vertical = 4.dp), color = com.alvand.securityscanner.ui.AccentBlue.copy(alpha = 0.08f))
@@ -1152,7 +1162,8 @@ fun FilesScreen(vm: ScanViewModel) {
     val cloud by ctx.dataStore.data.map { it[PrefsKeys.CLOUD] == true }.collectAsState(false)
     val vtKey by ctx.dataStore.data.map { it[PrefsKeys.VT_KEY] ?: "" }.collectAsState("")
     val vtResults = remember { mutableStateMapOf<String, String>() }
-    var vtChecking by remember { mutableStateOf<String?>(null) }
+    // Per-file busy flag: checking one file must not disable the others.
+    val vtChecking = remember { mutableStateMapOf<String, Boolean>() }
     val treeLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
@@ -1223,7 +1234,7 @@ fun FilesScreen(vm: ScanViewModel) {
                                 "${stringResource(R.string.infected)}: $danger",
                         fontWeight = FontWeight.Bold, fontSize = 14.sp
                     )
-                    if (vm.fileTruncated.value) Text(stringResource(R.string.truncated), fontSize = 11.sp)
+                    if (vm.fileTruncated.value) Text(stringResource(R.string.truncated_2), fontSize = 11.sp)
                     Spacer(Modifier.height(6.dp))
                     OutlinedTextField(
                         value = query, onValueChange = { query = it },
@@ -1278,15 +1289,15 @@ fun FilesScreen(vm: ScanViewModel) {
                         TextButton(onClick = {
                             val sha = f.sha256 ?: return@TextButton
                             scope.launch {
-                                vtChecking = f.uriString
+                                vtChecking[f.uriString] = true
                                 vtResults[f.uriString] = try {
                                     com.alvand.securityscanner.scanner.lookupVirusTotalCached(sha, vtKey)
                                         ?: "error/offline"
                                 } catch (_: Exception) { "error/offline" }
-                                vtChecking = null
+                                vtChecking.remove(f.uriString)
                             }
-                        }, enabled = vtChecking == null) {
-                            Text(if (vtChecking == f.uriString) "…" else stringResource(R.string.check_online))
+                        }, enabled = vtChecking[f.uriString] != true) {
+                            Text(if (vtChecking[f.uriString] == true) "…" else stringResource(R.string.check_online))
                         }
                     }
                     Spacer(Modifier.height(6.dp))
@@ -1333,30 +1344,30 @@ fun HistoryList(vm: ScanViewModel) {
     val fmt = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US) }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Text(stringResource(R.string.history), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = com.alvand.securityscanner.ui.TextPrimary)
+            Text(stringResource(R.string.history), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = com.alvand.securityscanner.ui.TextPrimary())
         }
         item {
             GlassCard(Modifier.fillMaxWidth()) {
-                Text("${stringResource(R.string.last_scan)}: ${lastScan ?: stringResource(R.string.never)}", color = com.alvand.securityscanner.ui.TextPrimary)
-                Text("${stringResource(R.string.device_score)}: ${lastScore ?: "--"}", fontSize = 13.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+                Text("${stringResource(R.string.last_scan)}: ${lastScan ?: stringResource(R.string.never)}", color = com.alvand.securityscanner.ui.TextPrimary())
+                Text("${stringResource(R.string.device_score)}: ${lastScore ?: "--"}", fontSize = 13.sp, color = com.alvand.securityscanner.ui.TextSecondary())
             }
         }
         if (records.isEmpty()) {
-            item { GlassCard(Modifier.fillMaxWidth()) { Text(stringResource(R.string.no_history), color = com.alvand.securityscanner.ui.TextSecondary) } }
+            item { GlassCard(Modifier.fillMaxWidth()) { Text(stringResource(R.string.no_history), color = com.alvand.securityscanner.ui.TextSecondary()) } }
         }
         items(records) { r ->
             GlassCard(Modifier.fillMaxWidth()) {
-                Text("${fmt.format(Date(r.timestamp))} — ${r.deviceScore}/100", fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
-                Text("${stringResource(R.string.apps_scanned)}: ${r.appsScanned} • ${stringResource(R.string.threats)}: ${r.threats}", fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+                Text("${fmt.format(Date(r.timestamp))} — ${r.deviceScore}/100", fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary())
+                Text("${stringResource(R.string.apps_scanned)}: ${r.appsScanned} • ${stringResource(R.string.threats)}: ${r.threats}", fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
                 if (r.filesScanned > 0) {
                     Text(
                         "${stringResource(R.string.files_scanned)}: ${r.filesScanned} • " +
                                 "${stringResource(R.string.suspicious)}/${stringResource(R.string.infected)}: ${r.fileThreats}",
-                        fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary
+                        fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary()
                     )
                 }
-                if (r.summary.isNotBlank()) Text(r.summary.take(300), fontSize = 11.sp, color = com.alvand.securityscanner.ui.TextSecondary)
-                if (r.fileSummary.isNotBlank()) Text(r.fileSummary.take(300), fontSize = 11.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+                if (r.summary.isNotBlank()) Text(r.summary.take(300), fontSize = 11.sp, color = com.alvand.securityscanner.ui.TextSecondary())
+                if (r.fileSummary.isNotBlank()) Text(r.fileSummary.take(300), fontSize = 11.sp, color = com.alvand.securityscanner.ui.TextSecondary())
             }
         }
     }
@@ -1392,9 +1403,9 @@ fun SettingsScreen(theme: String, lang: String) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text(stringResource(R.string.settings), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = com.alvand.securityscanner.ui.TextPrimary)
+        Text(stringResource(R.string.settings), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = com.alvand.securityscanner.ui.TextPrimary())
         GlassCard(Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.theme), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
+            Text(stringResource(R.string.theme), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary())
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("system" to stringResource(R.string.theme_system), "light" to stringResource(R.string.theme_light), "dark" to stringResource(R.string.theme_dark)).forEach { (v, t) ->
@@ -1408,7 +1419,7 @@ fun SettingsScreen(theme: String, lang: String) {
             }
         }
         GlassCard(Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.language), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
+            Text(stringResource(R.string.language), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary())
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("system" to stringResource(R.string.lang_system), "en" to stringResource(R.string.lang_en), "fa" to stringResource(R.string.lang_fa)).forEach { (v, t) ->
@@ -1435,8 +1446,8 @@ fun SettingsScreen(theme: String, lang: String) {
             }
         }
         GlassCard(Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.catalog_title), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
-            Text(stringResource(R.string.catalog_desc), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Text(stringResource(R.string.catalog_title), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary())
+            Text(stringResource(R.string.catalog_desc), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
             Spacer(Modifier.height(4.dp))
             Switch(
                 checked = catalogOn,
@@ -1447,8 +1458,8 @@ fun SettingsScreen(theme: String, lang: String) {
             )
         }
         GlassCard(Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.scheduled_scan), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
-            Text(stringResource(R.string.scheduled_desc), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Text(stringResource(R.string.scheduled_scan), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary())
+            Text(stringResource(R.string.scheduled_desc), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
             Spacer(Modifier.height(4.dp))
             Switch(
                 checked = sched,
@@ -1463,8 +1474,8 @@ fun SettingsScreen(theme: String, lang: String) {
             )
         }
         GlassCard(Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.cloud_lookup), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
-            Text(stringResource(R.string.cloud_desc), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Text(stringResource(R.string.cloud_lookup), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary())
+            Text(stringResource(R.string.cloud_desc), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
             Spacer(Modifier.height(4.dp))
             Switch(
                 checked = cloud,
@@ -1505,11 +1516,11 @@ fun SettingsScreen(theme: String, lang: String) {
             }
         }
         GlassCard(Modifier.fillMaxWidth()) {
-            Text("${stringResource(R.string.version)}: $verName ($verCode)", color = com.alvand.securityscanner.ui.TextPrimary)
-            Text("com.alvand.securityscanner", fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Text("${stringResource(R.string.version)}: $verName ($verCode)", color = com.alvand.securityscanner.ui.TextPrimary())
+            Text("com.alvand.securityscanner", fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
         }
         GlassCard(Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.about), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
+            Text(stringResource(R.string.about), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary())
             Spacer(Modifier.height(8.dp))
             val appIcon = remember(ctx) {
                 try {
@@ -1536,8 +1547,8 @@ fun SettingsScreen(theme: String, lang: String) {
                 )
             }
             Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.developed_by), fontSize = 13.sp, color = com.alvand.securityscanner.ui.TextPrimary)
-            Text(stringResource(R.string.copyright), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Text(stringResource(R.string.developed_by), fontSize = 13.sp, color = com.alvand.securityscanner.ui.TextPrimary())
+            Text(stringResource(R.string.copyright), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
             Spacer(Modifier.height(8.dp))
             Surface(
                 onClick = {
@@ -1559,11 +1570,11 @@ fun SettingsScreen(theme: String, lang: String) {
             }
         }
         GlassCard(Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.donate_title), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary)
-            Text(stringResource(R.string.donate_desc), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary)
+            Text(stringResource(R.string.donate_title), fontWeight = FontWeight.SemiBold, color = com.alvand.securityscanner.ui.TextPrimary())
+            Text(stringResource(R.string.donate_desc), fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
             Spacer(Modifier.height(6.dp))
             SelectionContainer {
-                Text(TON_ADDR, fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextPrimary)
+                Text(TON_ADDR, fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextPrimary())
             }
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1592,7 +1603,7 @@ fun SettingsScreen(theme: String, lang: String) {
             stringResource(R.string.copyright),
             fontSize = 11.sp,
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            color = com.alvand.securityscanner.ui.TextSecondary
+            color = com.alvand.securityscanner.ui.TextSecondary()
         )
     }
 }

@@ -1,4 +1,4 @@
-# AndroidSecurityScanner — Phase 8 (v1.7.0, versionCode 9)
+# AndroidSecurityScanner — Phase 8 (v1.7.1, versionCode 10)
 
 ## Prerequisites
 - Android Studio Hedgehog or later.
@@ -6,6 +6,21 @@
 - Android SDK 35 (`compileSdk/targetSdk 35`, `minSdk 23`).
 - No root required — scanning uses PackageManager + SAF only (no MediaStore query,
   so no storage permissions are requested).
+
+## New in Phase-8.1 (v1.7.1)
+- **Dark theme actually dark now:** cards, chips, score ring and radar follow
+  the Material scheme (were hardcoded light colors).
+- **Idol Catalog detections parse both engines:** ClamAV `signature` and
+  YARA `rule`/`description` hits both show up now (YARA detections were
+  rendered as empty strings before).
+- **Catalog integrity guards:** 8MB response cap + a 60-day staleness limit —
+  a tampered or abandoned catalog can no longer feed verdicts.
+- Stale unified score after a quick scan fixed; nightly scheduled scan now
+  also consults the Idol Catalog; install alerts skip EXTRA_REPLACING dupes;
+  per-file VT buttons are independent; honest deep-folder truncation notice;
+  VirusTotal stage label during the 16s-spaced checks; `localeConfig` for
+  Android 13+ per-app language settings; unused strings removed;
+  Privacy policy rewritten to match the actual code.
 
 ## New in Phase-8 (v1.7.0)
 - **Files tab is back:** the v1.6.0 redesign dropped it from the bottom bar, which
@@ -65,7 +80,8 @@
 - Heuristics: double-extension, executable ext, hidden, suspicious name, too-small/huge
   APK, unparsable APK, known-hash, plus full APK permission risk merged in.
 - Limits shown in UI: without root, system + other apps' private dirs are NOT visible.
-  SAF grant + MediaStore only. Truncation notice after 2000 files.
+  SAF grant only (no MediaStore query, no storage permissions). Truncation notice
+  after 2000 files or the folder-depth limit.
 - History stores `filesScanned/fileThreats/fileSummary` (Room v2, destructive fallback).
 
 ## Fixed in Phase-3 (all Python-script flaws ported properly)
@@ -103,10 +119,10 @@ virustotal.com > Sign up > API key > paste in Settings > enable lookup.
 
 ## Update path (GitHub web)
 Upload changed files, commit, Actions > Build Debug APK > download artifact.
-versionCode 8 (v1.6.0) installs OVER previous versions (same applicationId + same debug.keystore).
+versionCode 9 (v1.7.0) installs OVER previous versions (same applicationId + same debug.keystore).
 
 ## What was built
-Native Kotlin + Compose app, `applicationId=com.alvand.securityscanner`, versionCode=8 / versionName=1.6.0.
+Native Kotlin + Compose app, `applicationId=com.alvand.securityscanner`, versionCode=9 / versionName=1.7.0.
 - Dashboard with glassmorphism cards, device score 0..100, scan progress
 - Real scanner via PackageManager (no root): permissions analysis + installer source + debuggable flag + combo rules
 - History (last score/date + full list), Settings (dark/light/system, FA/EN/system)
