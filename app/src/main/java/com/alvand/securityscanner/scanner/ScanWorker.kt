@@ -7,6 +7,7 @@ import com.alvand.securityscanner.data.HistoryDb
 import com.alvand.securityscanner.data.PrefsKeys
 import com.alvand.securityscanner.dataStore
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit

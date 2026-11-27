@@ -787,11 +787,13 @@ fun ScoreRing(score: Int?) {
         }
     }
     Box(Modifier.size(230.dp), contentAlignment = Alignment.Center) {
+        // Hoisted out of Canvas: DrawScope is not a composable context.
+        val ringTrack = MaterialTheme.colorScheme.onBackground
         Canvas(Modifier.fillMaxSize()) {
             val stroke = 14.dp.toPx()
             val padding = 4.dp.toPx()
             drawArc(
-                MaterialTheme.colorScheme.onBackground.copy(alpha = if (score == null) 0.30f else 0.15f), 0f, 360f, false,
+                ringTrack.copy(alpha = if (score == null) 0.30f else 0.15f), 0f, 360f, false,
                 style = Stroke(stroke, cap = StrokeCap.Round),
                 topLeft = Offset(padding, padding),
                 size = Size(size.width - padding * 2f, size.height - padding * 2f)
@@ -804,7 +806,7 @@ fun ScoreRing(score: Int?) {
             )
             val inset = 32.dp.toPx()
             drawArc(
-                MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f), 0f, 360f, false,
+                ringTrack.copy(alpha = 0.25f), 0f, 360f, false,
                 style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 6f), 0f)),
                 alpha = 0.4f,
                 topLeft = Offset(inset, inset),
@@ -891,8 +893,9 @@ fun Radar(active: Boolean) {
             val cx = size.width / 2f
             val cy = size.height / 2f
             val r = minOf(cx, cy)
+            val ringColor = MaterialTheme.colorScheme.onBackground
             for (f in listOf(0.34f, 0.56f, 0.78f, 1f)) {
-                drawCircle(MaterialTheme.colorScheme.onBackground, r * f, style = Stroke(1.5.dp.toPx()), alpha = 0.35f)
+                drawCircle(ringColor, r * f, style = Stroke(1.5.dp.toPx()), alpha = 0.35f)
             }
             if (active) {
                 rotate(sweep) {

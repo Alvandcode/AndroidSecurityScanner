@@ -115,4 +115,6 @@
     <string name="catalog_desc">گزارش امنیتی عمومی کاتالوگ Idol Store (شامل ClamAV، YARA، OSV، Semgrep و Gitleaks) را دانلود و برنامه‌های نصب‌شده و هش فایل‌ها را با آن تطبیق می‌دهد. فقط خواندنی: هیچ داده‌ای از دستگاه شما ارسال نمی‌شود.</string>
     <string name="catalog_label">کاتالوگ Idol</string>
     <string name="catalog_stage">کاتالوگ Idol…</string>
+    <string name="vt_stage">بررسی VirusTotal…</string>
+    <string name="truncated_2">زودتر متوقف شد — سقف ۲۰۰۰ فایل یا عمق پوشه. پوشهٔ کوچک‌تری برای پوشش کامل انتخاب کن.</string>
 </resources>
