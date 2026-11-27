@@ -888,12 +888,13 @@ fun Radar(active: Boolean) {
             label = "sweep"
         ).value
     } else 0f
+    // Hoisted out of Canvas: DrawScope is not a composable context.
+    val ringColor = MaterialTheme.colorScheme.onBackground
     Box(Modifier.size(260.dp), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val cx = size.width / 2f
             val cy = size.height / 2f
             val r = minOf(cx, cy)
-            val ringColor = MaterialTheme.colorScheme.onBackground
             for (f in listOf(0.34f, 0.56f, 0.78f, 1f)) {
                 drawCircle(ringColor, r * f, style = Stroke(1.5.dp.toPx()), alpha = 0.35f)
             }
