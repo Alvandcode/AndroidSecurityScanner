@@ -118,5 +118,9 @@
     <string name="catalog_label">کاتالوگ Idol</string>
     <string name="catalog_stage">کاتالوگ Idol…</string>
     <string name="vt_stage">بررسی VirusTotal…</string>
+    <string name="positive">مثبت</string>
+    <string name="negative">منفی</string>
+    <string name="engines_clean">اسکن بدون مورد</string>
+    <string name="engines_issues">اسکن دارای مشکل</string>
     <string name="truncated_2">زودتر متوقف شد — سقف ۲۰۰۰ فایل یا عمق پوشه. پوشهٔ کوچک‌تری برای پوشش کامل انتخاب کن.</string>
 </resources>

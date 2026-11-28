@@ -1,4 +1,4 @@
-# AndroidSecurityScanner — Phase 8 (v1.7.2, versionCode 11)
+# AndroidSecurityScanner — Phase 8 (v1.8.0, versionCode 12)
 
 ## Prerequisites
 - Android Studio Hedgehog or later.
@@ -6,6 +6,14 @@
 - Android SDK 35 (`compileSdk/targetSdk 35`, `minSdk 23`).
 - No root required — scanning uses PackageManager + SAF only (no MediaStore query,
   so no storage permissions are requested).
+
+## New in Phase-8.3 (v1.8.0)
+- **Verdict-first details dialog (no verbose explanations):** app details now
+  open with a sentiment-style gauge — big green **Positive %** / big red
+  **Negative %** chips over a split bar — plus counts of clean vs flagged
+  scan results from the Idol Catalog engines. Per-engine statuses and
+  permission-name lists are no longer shown (counts only).
+- App rows on the dashboard show the risky-permission **count** instead of the raw list.
 
 ## New in Phase-8.2 (v1.7.2)
 - **Delete-history button** in the History tab with a confirmation dialog

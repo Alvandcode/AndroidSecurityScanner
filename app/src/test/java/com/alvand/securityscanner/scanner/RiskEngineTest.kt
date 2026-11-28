@@ -340,4 +340,40 @@ class RiskEngineTest {
         val app = CatalogReputation.parse(json).appFor("com.a")
         assertEquals(listOf("plain hit"), app?.detections)
     }
+
+    @Test
+    fun `parse aggregates engine results for the gauge`() {
+        val sha = "a".repeat(64)
+        val json = """
+        {
+          "results": [
+            {"id": "com.a", "overall_status": "WARNING",
+             "source_scan": {
+               "clamav": {"status": "no_detection"},
+               "yara": {"status": "detection"},
+               "semgrep": {"status": "scan_error"},
+               "gitleaks": {"status": "no_findings"},
+               "dependency": {"status": "scan_error"}
+             },
+             "scanned_assets": [
+               {"name": "a.apk", "status": "no_detection", "sha256": "$sha"},
+               {"name": "b.apk", "status": "suspicious_content", "sha256": null}
+             ]}
+          ]
+        }
+        """.trimIndent()
+        val app = CatalogReputation.parse(json).appFor("com.a")
+        // Clean: clamav + gitleaks. Assets bucket: has an issue (mixed).
+        assertEquals(2, app?.enginesClean)
+        // Issues: yara + semgrep + dependency + assets bucket = 4
+        assertEquals(4, app?.enginesIssues)
+    }
+
+    @Test
+    fun `gauge counts stay zero when no engines ran`() {
+        val json = """{"results": [{"id": "com.a", "overall_status": "NOT_SCANNED"}]}"""
+        val app = CatalogReputation.parse(json).appFor("com.a")
+        assertEquals(0, app?.enginesClean)
+        assertEquals(0, app?.enginesIssues)
+    }
 }

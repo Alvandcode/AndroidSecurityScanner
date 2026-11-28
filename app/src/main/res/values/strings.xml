@@ -118,5 +118,9 @@
     <string name="catalog_label">Idol Catalog</string>
     <string name="catalog_stage">Idol Catalog…</string>
     <string name="vt_stage">Checking VirusTotal…</string>
+    <string name="positive">Positive</string>
+    <string name="negative">Negative</string>
+    <string name="engines_clean">Clean scans</string>
+    <string name="engines_issues">Flagged scans</string>
     <string name="truncated_2">Stopped early — 2000-file or folder-depth limit reached. Pick a narrower folder for full coverage.</string>
 </resources>

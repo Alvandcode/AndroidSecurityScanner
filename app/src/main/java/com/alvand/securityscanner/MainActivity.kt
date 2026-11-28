@@ -734,7 +734,7 @@ fun AppRow(
                 Text("${f.score}/100 • " + verdictText(f.verdict) + (if (f.unknownSource) " • " + stringResource(R.string.unknown_source) else ""),
                     fontSize = 12.sp, color = com.alvand.securityscanner.ui.TextSecondary())
                 if (f.riskyPermissions.isNotEmpty())
-                    Text("${stringResource(R.string.risky_permissions)}: " + f.riskyPermissions.joinToString { it.name }, fontSize = 11.sp, color = com.alvand.securityscanner.ui.TextSecondary())
+                    Text("${stringResource(R.string.risky_permissions)}: ${f.riskyPermissions.size}", fontSize = 11.sp, color = com.alvand.securityscanner.ui.TextSecondary())
             }
             Column {
                 Surface(
@@ -1364,24 +1364,6 @@ fun HistoryList(vm: ScanViewModel) {
                 }
             }
         }
-        if (confirmClear) {
-            AlertDialog(
-                onDismissRequest = { confirmClear = false },
-                title = { Text(stringResource(R.string.clear_history), fontWeight = FontWeight.Bold) },
-                text = { Text(stringResource(R.string.clear_history_confirm)) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        confirmClear = false
-                        scope.launch {
-                            try { com.alvand.securityscanner.data.HistoryDb.get(ctx).dao().clearAll() } catch (_: Exception) { }
-                        }
-                    }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.close)) }
-                }
-            )
-        }
         if (records.isEmpty()) {
             item { GlassCard(Modifier.fillMaxWidth()) { Text(stringResource(R.string.no_history), color = com.alvand.securityscanner.ui.TextSecondary()) } }
         }
@@ -1400,6 +1382,24 @@ fun HistoryList(vm: ScanViewModel) {
                 if (r.fileSummary.isNotBlank()) Text(r.fileSummary.take(300), fontSize = 11.sp, color = com.alvand.securityscanner.ui.TextSecondary())
             }
         }
+    }
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text(stringResource(R.string.clear_history), fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.clear_history_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmClear = false
+                    scope.launch {
+                        try { com.alvand.securityscanner.data.HistoryDb.get(ctx).dao().clearAll() } catch (_: Exception) { }
+                    }
+                }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.close)) }
+            }
+        )
     }
 }
 

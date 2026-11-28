@@ -83,7 +83,9 @@ class AppScanner(private val context: Context) {
                     score = score,
                     verdict = verdict,
                     reasons = reasons,
-                    catalogStatus = catalogApp?.takeIf { it.status !in UNCONCLUSIVE_CATALOG }?.status
+                    catalogStatus = catalogApp?.takeIf { it.status !in UNCONCLUSIVE_CATALOG }?.status,
+                    catalogEnginesClean = catalogApp?.enginesClean ?: 0,
+                    catalogEnginesIssues = catalogApp?.enginesIssues ?: 0
                 )
             )
             onProgress(Progress(i + 1, pkgs.size))
@@ -147,7 +149,9 @@ class AppScanner(private val context: Context) {
                 score = score,
                 verdict = verdict,
                 reasons = reasons,
-                catalogStatus = catalogApp?.takeIf { it.status !in UNCONCLUSIVE_CATALOG }?.status
+                catalogStatus = catalogApp?.takeIf { it.status !in UNCONCLUSIVE_CATALOG }?.status,
+                catalogEnginesClean = catalogApp?.enginesClean ?: 0,
+                catalogEnginesIssues = catalogApp?.enginesIssues ?: 0
             )
         } catch (_: Exception) { null }
     }

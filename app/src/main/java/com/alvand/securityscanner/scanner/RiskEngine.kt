@@ -13,7 +13,9 @@ data class AppFinding(
     val score: Int, // 0..100, 100 = safe
     val verdict: Verdict,
     val reasons: List<String>,
-    val catalogStatus: String? = null   // Idol Catalog overall_status, null = not in catalog
+    val catalogStatus: String? = null,   // Idol Catalog overall_status, null = not in catalog
+    val catalogEnginesClean: Int = 0,    // Idol Catalog: engines/assets that ran clean
+    val catalogEnginesIssues: Int = 0    // Idol Catalog: engines/assets that reported issues
 )
 
 enum class Verdict { SAFE, REVIEW, DANGEROUS }

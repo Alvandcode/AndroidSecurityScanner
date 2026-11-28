@@ -34,7 +34,11 @@ data class CatalogApp(
     val releaseVersion: String,
     val githubRepository: String,
     val detections: List<String>,
-    val warnings: List<String>
+    val warnings: List<String>,
+    // Aggregated scan results (for the positive/negative gauge):
+    // engines that ran clean vs engines that reported something.
+    val enginesClean: Int = 0,
+    val enginesIssues: Int = 0
 )
 
 data class CatalogAsset(
@@ -201,6 +205,30 @@ object CatalogReputation {
                     if (label.isNotBlank()) warnings.add(label.take(120))
                 }
             }
+            // Aggregated engine results for the gauge (UI shows counts only,
+            // never the per-engine explanations).
+            var enginesClean = 0
+            var enginesIssues = 0
+            r.optJSONObject("source_scan")?.let { src ->
+                for (key in listOf("clamav", "yara", "semgrep", "gitleaks", "dependency")) {
+                    val e = src.optJSONObject(key) ?: continue
+                    when (e.optString("status", "")) {
+                        "no_detection", "no_findings" -> enginesClean++
+                        "", "not_run" -> { }              // missing engine: skip
+                        else -> enginesIssues++            // detection/scan_error/warning
+                    }
+                }
+            }
+            val assetArr = r.optJSONArray("scanned_assets")
+            if (assetArr != null && assetArr.length() > 0) {
+                // Release assets count as ONE result bucket (like the store UI).
+                var allClean = true
+                for (j in 0 until assetArr.length()) {
+                    val a = assetArr.optJSONObject(j) ?: continue
+                    if (a.optString("status", "") != "no_detection") allClean = false
+                }
+                if (allClean) enginesClean++ else enginesIssues++
+            }
             apps[id.lowercase()] = CatalogApp(
                 id = id,
                 name = r.optString("name", id),
@@ -209,7 +237,9 @@ object CatalogReputation {
                 releaseVersion = r.optString("release_version", ""),
                 githubRepository = r.optString("github_repository", ""),
                 detections = detections,
-                warnings = warnings
+                warnings = warnings,
+                enginesClean = enginesClean,
+                enginesIssues = enginesIssues
             )
             val assetArr = r.optJSONArray("scanned_assets") ?: continue
             for (j in 0 until assetArr.length()) {
