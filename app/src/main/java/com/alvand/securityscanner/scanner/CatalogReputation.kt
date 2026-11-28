@@ -219,15 +219,16 @@ object CatalogReputation {
                     }
                 }
             }
-            val assetArr = r.optJSONArray("scanned_assets")
-            if (assetArr != null && assetArr.length() > 0) {
-                // Release assets count as ONE result bucket (like the store UI).
-                var allClean = true
-                for (j in 0 until assetArr.length()) {
-                    val a = assetArr.optJSONObject(j) ?: continue
-                    if (a.optString("status", "") != "no_detection") allClean = false
+            // Release assets count as ONE result bucket (like the store UI).
+            r.optJSONArray("scanned_assets")?.let { assetList ->
+                if (assetList.length() > 0) {
+                    var allClean = true
+                    for (j in 0 until assetList.length()) {
+                        val a = assetList.optJSONObject(j) ?: continue
+                        if (a.optString("status", "") != "no_detection") allClean = false
+                    }
+                    if (allClean) enginesClean++ else enginesIssues++
                 }
-                if (allClean) enginesClean++ else enginesIssues++
             }
             apps[id.lowercase()] = CatalogApp(
                 id = id,
@@ -241,9 +242,9 @@ object CatalogReputation {
                 enginesClean = enginesClean,
                 enginesIssues = enginesIssues
             )
-            val assetArr = r.optJSONArray("scanned_assets") ?: continue
-            for (j in 0 until assetArr.length()) {
-                val a = assetArr.optJSONObject(j) ?: continue
+            val assetArr2 = r.optJSONArray("scanned_assets") ?: continue
+            for (j in 0 until assetArr2.length()) {
+                val a = assetArr2.optJSONObject(j) ?: continue
                 val sha = a.optString("sha256", "")
                 if (sha.length != 64) continue   // only hashed assets are usable
                 assets[sha.lowercase()] = CatalogAsset(

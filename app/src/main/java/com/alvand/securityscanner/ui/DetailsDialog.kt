@@ -177,13 +177,13 @@ fun VerdictGauge(positive: Int) {
         ) {
             Box(
                 Modifier
-                    .weight(pos.coerceAtLeast(0.01f))
+                    .weight(pos.toFloat().coerceAtLeast(0.01f))
                     .fillMaxHeight()
                     .background(GlowDanger)
             )
             Box(
                 Modifier
-                    .weight(neg.coerceAtLeast(0.01f))
+                    .weight(neg.toFloat().coerceAtLeast(0.01f))
                     .fillMaxHeight()
                     .background(GlowSafe)
             )
