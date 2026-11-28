@@ -1,4 +1,4 @@
-# AndroidSecurityScanner — Phase 8 (v1.8.1, versionCode 13)
+# AndroidSecurityScanner — Phase 8 (v1.8.2, versionCode 14)
 
 ## Prerequisites
 - Android Studio Hedgehog or later.
@@ -6,6 +6,12 @@
 - Android SDK 35 (`compileSdk/targetSdk 35`, `minSdk 23`).
 - No root required — scanning uses PackageManager + SAF only (no MediaStore query,
   so no storage permissions are requested).
+
+## New in Phase-8.5 (v1.8.2)
+- **Code structure refactor:** MainActivity split into HomeScreen / ScanScreen /
+  FilesScreen / HistoryScreen / SettingsScreen / ScanViewModel files
+  (same package, no behavior change) — MainActivity is now ~190 lines.
+- Details dialog scrolls on short screens.
 
 ## New in Phase-8.4 (v1.8.1)
 - Fixed the details gauge split bar (red/green segments were mirrored).

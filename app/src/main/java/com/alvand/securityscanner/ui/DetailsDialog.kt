@@ -2,6 +2,8 @@ package com.alvand.securityscanner.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -54,7 +56,10 @@ fun DetailsDialog(f: AppFinding, onClose: () -> Unit) {
         onDismissRequest = onClose,
         title = { Text(f.appName, fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Text(f.packageName, fontSize = 11.sp, color = TextSecondary())
 
                 // ---- Positive/Negative gauge (no explanations, just numbers) ----
