@@ -168,7 +168,7 @@ fun VerdictGauge(positive: Int) {
                 value = "$pos%", label = stringResource(R.string.positive)
             )
         }
-        // Split bar
+        // Split bar: red segment = negative share, green = positive share.
         Row(
             Modifier
                 .fillMaxWidth()
@@ -177,13 +177,13 @@ fun VerdictGauge(positive: Int) {
         ) {
             Box(
                 Modifier
-                    .weight(pos.toFloat().coerceAtLeast(0.01f))
+                    .weight(neg.toFloat().coerceAtLeast(0.01f))
                     .fillMaxHeight()
                     .background(GlowDanger)
             )
             Box(
                 Modifier
-                    .weight(neg.toFloat().coerceAtLeast(0.01f))
+                    .weight(pos.toFloat().coerceAtLeast(0.01f))
                     .fillMaxHeight()
                     .background(GlowSafe)
             )

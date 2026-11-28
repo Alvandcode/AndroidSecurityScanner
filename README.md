@@ -1,4 +1,4 @@
-# AndroidSecurityScanner — Phase 8 (v1.8.0, versionCode 12)
+# AndroidSecurityScanner — Phase 8 (v1.8.1, versionCode 13)
 
 ## Prerequisites
 - Android Studio Hedgehog or later.
@@ -6,6 +6,9 @@
 - Android SDK 35 (`compileSdk/targetSdk 35`, `minSdk 23`).
 - No root required — scanning uses PackageManager + SAF only (no MediaStore query,
   so no storage permissions are requested).
+
+## New in Phase-8.4 (v1.8.1)
+- Fixed the details gauge split bar (red/green segments were mirrored).
 
 ## New in Phase-8.3 (v1.8.0)
 - **Verdict-first details dialog (no verbose explanations):** app details now
